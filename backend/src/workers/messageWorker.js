@@ -1,9 +1,13 @@
 import { Worker, Queue } from 'bullmq';
-import redis from '../lib/redis.js';
+import { createRedisConnection } from '../lib/redis.js';
 import supabase from '../lib/supabase.js';
 import { sendMessage, createSession, getSessionStatus } from '../services/sessionManager.js';
 
-export const messageQueue = new Queue('messages', { connection: redis });
+// BullMQ requires separate dedicated connections — not shared with app
+const queueConnection = createRedisConnection();
+const workerConnection = createRedisConnection();
+
+export const messageQueue = new Queue('messages', { connection: queueConnection });
 
 // Auto-restore a session if it's not in memory but DB says connected
 async function ensureSessionInMemory(sessionId) {
@@ -85,7 +89,7 @@ export function startWorker() {
       }
     },
     {
-      connection: redis,
+      connection: workerConnection,
       concurrency: 1,
       limiter: { max: 1, duration: 100 },
     }
