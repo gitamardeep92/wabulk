@@ -27,12 +27,12 @@ const PORT = process.env.PORT || 4000;
 
 // ── Security & Middleware ──────────────────────────────────
 app.use(helmet({
-  // Allow loading scripts/styles for the frontend we're serving
   contentSecurityPolicy: false,
 }));
 app.use(cors({
-  // Single domain — everything is on the same origin now
-  origin: process.env.ALLOWED_ORIGIN || '*',
+  origin: process.env.ALLOWED_ORIGIN
+    ? [process.env.ALLOWED_ORIGIN, /\.onrender\.com$/]
+    : '*',
   credentials: true,
 }));
 app.use(express.json({ limit: '2mb' }));

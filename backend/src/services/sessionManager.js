@@ -1,28 +1,27 @@
 import pkg from 'whatsapp-web.js';
-const { Client, LocalAuth } = pkg;
+const { Client, RemoteAuth } = pkg;
 import qrcode from 'qrcode';
 import supabase from '../lib/supabase.js';
-import fs from 'fs';
-import path from 'path';
-
-const SESSION_PATH = process.env.SESSION_PATH || './wa-sessions';
+import { SupabaseStore } from './supabaseStore.js';
 
 // In-memory map: sessionId -> Client instance
 const clients = new Map();
 
-if (!fs.existsSync(SESSION_PATH)) {
-  fs.mkdirSync(SESSION_PATH, { recursive: true });
-}
-
 export async function createSession(sessionId, userId) {
   if (clients.has(sessionId)) {
+    console.log(`[WA] Session ${sessionId} already in memory`);
     return { status: 'already_exists' };
   }
 
+  console.log(`[WA] Creating session ${sessionId}`);
+
+  const store = new SupabaseStore();
+
   const client = new Client({
-    authStrategy: new LocalAuth({
+    authStrategy: new RemoteAuth({
       clientId: sessionId,
-      dataPath: SESSION_PATH,
+      store,
+      backupSyncIntervalMs: 60000, // sync to Supabase every 60s
     }),
     puppeteer: {
       headless: true,
@@ -41,7 +40,6 @@ export async function createSession(sessionId, userId) {
 
   clients.set(sessionId, client);
 
-  // Update DB status
   await supabase
     .from('wa_sessions')
     .update({ status: 'pending', updated_at: new Date().toISOString() })
@@ -72,6 +70,10 @@ export async function createSession(sessionId, userId) {
       .eq('id', sessionId);
   });
 
+  client.on('remote_session_saved', () => {
+    console.log(`[WA] Session ${sessionId} saved to Supabase`);
+  });
+
   client.on('disconnected', async (reason) => {
     console.log(`[WA] Session ${sessionId} disconnected:`, reason);
     clients.delete(sessionId);
@@ -99,8 +101,6 @@ export async function sendMessage(sessionId, toNumber, message) {
   if (!client) {
     throw new Error(`Session ${sessionId} not found or not connected`);
   }
-
-  // Format number: strip + and add @c.us
   const chatId = toNumber.replace(/\D/g, '') + '@c.us';
   const result = await client.sendMessage(chatId, message);
   return result.id._serialized;
@@ -112,6 +112,8 @@ export async function disconnectSession(sessionId) {
     await client.destroy();
     clients.delete(sessionId);
   }
+  const store = new SupabaseStore();
+  await store.delete({ session: sessionId });
 }
 
 export function getSessionStatus(sessionId) {
@@ -119,22 +121,35 @@ export function getSessionStatus(sessionId) {
 }
 
 export async function restoreAllSessions() {
-  console.log('[WA] Restoring connected sessions from DB...');
+  console.log('[WA] Restoring sessions from Supabase...');
+
   const { data: sessions } = await supabase
     .from('wa_sessions')
-    .select('id, user_id')
+    .select('id, user_id, phone_number')
     .eq('status', 'connected');
 
-  if (!sessions?.length) return;
+  if (!sessions?.length) {
+    console.log('[WA] No sessions to restore');
+    return;
+  }
+
+  console.log(`[WA] Restoring ${sessions.length} session(s)...`);
 
   for (const session of sessions) {
     try {
+      console.log(`[WA] Restoring ${session.phone_number || session.id}`);
       await createSession(session.id, session.user_id);
+      await new Promise((r) => setTimeout(r, 3000)); // stagger restores
     } catch (err) {
-      console.error(`[WA] Failed to restore session ${session.id}:`, err.message);
+      console.error(`[WA] Failed to restore ${session.id}:`, err.message);
+      await supabase
+        .from('wa_sessions')
+        .update({ status: 'disconnected', updated_at: new Date().toISOString() })
+        .eq('id', session.id);
     }
   }
-  console.log(`[WA] Restored ${sessions.length} sessions`);
+
+  console.log('[WA] Session restore complete');
 }
 
 export { clients };

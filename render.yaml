@@ -1,80 +1,46 @@
-# render.yaml — Deploy to Render
-# Place this in the root of your backend repo
+# render.yaml
+# One backend web service + two free static sites
+# No persistent disk needed — sessions saved to Supabase
 
 services:
-  # ── Backend API ─────────────────────────────────────────
+
+  # ── Backend (API + serves frontend/admin/marketing) ───────
   - type: web
     name: wabulk-api
     env: node
-    region: singapore
-    plan: starter
-    buildCommand: npm install
+    region: singapore       # closest to India
+    plan: free              # UptimeRobot keeps it awake
+    rootDir: backend
+    buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 4000
+        value: 10000         # Render free uses port 10000
       - key: SUPABASE_URL
-        sync: false   # Set manually in Render dashboard
+        sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
-      - key: JWT_SECRET
-        generateValue: true
       - key: REDIS_URL
-        fromService:
-          type: redis
-          name: wabulk-redis
-          property: connectionString
-      - key: FRONTEND_URL
-        sync: false   # e.g. https://app.wabulk.com
-      - key: ADMIN_URL
-        sync: false   # e.g. https://admin.wabulk.com
+        sync: false          # paste your Upstash rediss:// URL
+      - key: JWT_SECRET
+        generateValue: true  # Render auto-generates a secure random value
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD_HASH
-        sync: false   # bcrypt hash of your admin password
-      - key: SESSION_PATH
-        value: /opt/render/project/wa-sessions
+        sync: false
+      - key: ALLOWED_ORIGIN
+        sync: false          # set to your .onrender.com URL after first deploy
 
-    # Persistent disk for WhatsApp sessions
-    disk:
-      name: wa-sessions
-      mountPath: /opt/render/project/wa-sessions
-      sizeGB: 1
-
-  # ── Frontend Dashboard ───────────────────────────────────
-  - type: web
-    name: wabulk-app
-    env: static
-    buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        value: https://wabulk-api.onrender.com
-
-  # ── Admin Panel ──────────────────────────────────────────
-  - type: web
-    name: wabulk-admin
-    env: static
-    buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        value: https://wabulk-api.onrender.com
-
-  # ── Redis ────────────────────────────────────────────────
-  - type: redis
-    name: wabulk-redis
-    region: singapore
-    plan: starter
-    maxmemoryPolicy: noeviction
+  # ── NOTE ──────────────────────────────────────────────────
+  # Frontend and admin are built INTO the backend by npm run build
+  # and served by Express at /app and /admin paths.
+  # No separate static site services needed.
+  #
+  # Your URLs after deploy:
+  #   https://wabulk-api.onrender.com/        marketing
+  #   https://wabulk-api.onrender.com/app     dashboard
+  #   https://wabulk-api.onrender.com/admin   admin panel
+  #   https://wabulk-api.onrender.com/v1/...  API
