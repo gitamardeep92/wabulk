@@ -8,11 +8,8 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "worker": "node src/workers/messageWorker.js",
-    "build:frontend": "cd ../frontend && npm install && npm run build && cp -r dist ../backend/public/app",
-    "build:admin": "cd ../admin && npm install && npm run build && cp -r dist ../backend/public/admin",
-    "build:marketing": "mkdir -p public/marketing && cp -r ../marketing/. public/marketing/",
-    "build": "npm run build:frontend && npm run build:admin && npm run build:marketing",
-    "railway-build": "npm install && npm run build"
+    "build": "node build.mjs",
+    "railway-build": "npm install && node build.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
