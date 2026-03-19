@@ -107,11 +107,11 @@ app.listen(PORT, async () => {
   console.log(`   Admin:     http://localhost:${PORT}/admin`);
   console.log(`   API:       http://localhost:${PORT}/v1/messages`);
 
-  // Start BullMQ worker
+  // Start Supabase-based message worker (no Redis needed)
   startWorker();
   console.log('⚙️  Message worker started');
 
-  // Restore active WA sessions from DB
+  // Restore active WA sessions from Supabase
   await restoreAllSessions();
 });
 
