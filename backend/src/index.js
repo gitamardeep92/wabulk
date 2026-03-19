@@ -28,12 +28,17 @@ const PORT = process.env.PORT || 4000;
 // ── Security & Middleware ──────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
 }));
+
+// Since frontend/admin are served from the same server,
+// all requests are same-origin — CORS is effectively a no-op.
+// We use * to avoid any CORS-related 403s during development or
+// if someone accesses the API from an external tool.
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN
-    ? [process.env.ALLOWED_ORIGIN, /\.onrender\.com$/]
-    : '*',
-  credentials: true,
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '2mb' }));
 app.use(morgan('combined'));
@@ -53,6 +58,9 @@ const apiLimiter = rateLimit({
   max: 120,
   keyGenerator: (req) => req.headers.authorization || req.ip,
 });
+
+// Handle preflight requests for all routes
+app.options('*', cors());
 
 // ── API Routes (must come BEFORE static files) ────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));

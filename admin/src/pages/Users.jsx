@@ -20,7 +20,7 @@ export default function Users() {
     if (search) params.set('search', search);
     if (planFilter) params.set('plan', planFilter);
     if (statusFilter) params.set('status', statusFilter);
-    const { data } = await api.get(`/admin/users?${params}`);
+    const { data } = await api.get(`/admin-api/users?${params}`);
     setUsers(data.users);
     setTotal(data.total);
   };
