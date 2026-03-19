@@ -47,7 +47,7 @@ console.log('══════════════════════�
 
 // ── 1. Build frontend dashboard ──────────────────────────
 console.log('\n[1/3] Building frontend dashboard...');
-run('npm install', FRONTEND);
+run('npm install --include=dev', FRONTEND);
 run('./node_modules/.bin/vite build', FRONTEND);
 const frontendDist = path.join(FRONTEND, 'dist');
 const frontendOut  = path.join(PUBLIC, 'app');
@@ -57,7 +57,7 @@ console.log(`✓ Frontend copied to public/app/`);
 
 // ── 2. Build admin panel ─────────────────────────────────
 console.log('\n[2/3] Building admin panel...');
-run('npm install', ADMIN);
+run('npm install --include=dev', ADMIN);
 run('./node_modules/.bin/vite build', ADMIN);
 const adminDist = path.join(ADMIN, 'dist');
 const adminOut  = path.join(PUBLIC, 'admin');
