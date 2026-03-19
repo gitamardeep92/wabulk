@@ -3,8 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './hooks/useAuth';
 
-import Login from './pages/Login';
-import Signup from './pages/Signup';
+import { Login, Signup, Settings, Billing, Docs } from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Sessions from './pages/Sessions';
@@ -12,32 +11,27 @@ import Templates from './pages/Templates';
 import Campaigns from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
 import ApiKeys from './pages/ApiKeys';
-import Docs from './pages/Docs';
-import Billing from './pages/Billing';
-import Settings from './pages/Settings';
 
 function Protected({ children }) {
   const { user, loading } = useAuthStore();
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-[#0a0f0d]">
-      <div className="w-8 h-8 border-2 border-wa border-t-transparent rounded-full animate-spin" />
+    <div className="h-screen flex items-center justify-center bg-[#060c07]">
+      <div className="w-7 h-7 border-2 border-[#25D366] border-t-transparent rounded-full animate-spin" />
     </div>
   );
   return user ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {
-  const init = useAuthStore((s) => s.init);
+  const init = useAuthStore(s => s.init);
   useEffect(() => { init(); }, []);
 
   return (
     <BrowserRouter basename="/app">
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: { background: '#111a14', color: '#e8f0eb', border: '1px solid #1e2e22' },
-        }}
-      />
+      <Toaster position="top-right" toastOptions={{
+        style: { background: '#0f1810', color: '#dce8df', border: '1px solid #1c2e20', fontSize: '13px' },
+        success: { iconTheme: { primary: '#25D366', secondary: '#061008' } },
+      }} />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
