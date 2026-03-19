@@ -48,8 +48,7 @@ console.log('══════════════════════�
 // ── 1. Build frontend dashboard ──────────────────────────
 console.log('\n[1/3] Building frontend dashboard...');
 run('npm install', FRONTEND);
-// Use npx to guarantee vite is found from local node_modules
-run('npx --yes vite build', FRONTEND);
+run('./node_modules/.bin/vite build', FRONTEND);
 const frontendDist = path.join(FRONTEND, 'dist');
 const frontendOut  = path.join(PUBLIC, 'app');
 if (fs.existsSync(frontendOut)) fs.rmSync(frontendOut, { recursive: true });
@@ -59,7 +58,7 @@ console.log(`✓ Frontend copied to public/app/`);
 // ── 2. Build admin panel ─────────────────────────────────
 console.log('\n[2/3] Building admin panel...');
 run('npm install', ADMIN);
-run('npx --yes vite build', ADMIN);
+run('./node_modules/.bin/vite build', ADMIN);
 const adminDist = path.join(ADMIN, 'dist');
 const adminOut  = path.join(PUBLIC, 'admin');
 if (fs.existsSync(adminOut)) fs.rmSync(adminOut, { recursive: true });
