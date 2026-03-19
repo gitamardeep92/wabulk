@@ -3,23 +3,14 @@ const { Client, RemoteAuth } = pkg;
 import qrcode from 'qrcode';
 import supabase from '../lib/supabase.js';
 import { SupabaseStore } from './supabaseStore.js';
-import puppeteer from 'puppeteer';
 
 // In-memory map: sessionId -> Client instance
 const clients = new Map();
 
-// Get the path to puppeteer's bundled Chromium
-// This works on Render, Railway, and local Mac without needing system Chrome
-async function getChromiumPath() {
-  try {
-    const browserFetcher = puppeteer.createBrowserFetcher();
-    const executablePath = puppeteer.executablePath();
-    return executablePath;
-  } catch {
-    // Fallback — let whatsapp-web.js find chrome itself
-    return undefined;
-  }
-}
+// Chrome executable path — set PUPPETEER_EXECUTABLE_PATH in Render env vars
+// Render has Chrome at: /usr/bin/google-chrome-stable
+// This avoids downloading 170MB of Chromium on every deploy
+const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable';
 
 export async function createSession(sessionId, userId) {
   if (clients.has(sessionId)) {
@@ -27,10 +18,9 @@ export async function createSession(sessionId, userId) {
     return { status: 'already_exists' };
   }
 
-  console.log(`[WA] Creating session ${sessionId}`);
+  console.log(`[WA] Creating session ${sessionId} using Chrome at: ${CHROME_PATH}`);
 
   const store = new SupabaseStore();
-  const executablePath = await getChromiumPath();
 
   const client = new Client({
     authStrategy: new RemoteAuth({
@@ -40,7 +30,7 @@ export async function createSession(sessionId, userId) {
     }),
     puppeteer: {
       headless: true,
-      executablePath,
+      executablePath: CHROME_PATH,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
