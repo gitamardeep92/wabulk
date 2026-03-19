@@ -2,36 +2,36 @@ import supabase from '../lib/supabase.js';
 
 export async function checkPlanLimits(req, res, next) {
   const userId = req.user.id;
-  const month = new Date().toISOString().slice(0, 7); // "2025-10"
+  const month = new Date().toISOString().slice(0, 7);
 
+  // Use maybeSingle() instead of single() to avoid errors when no row exists
   const { data: usage } = await supabase
     .from('usage')
     .select('messages_sent')
     .eq('user_id', userId)
     .eq('month', month)
-    .single();
+    .maybeSingle();
 
   const { data: limits } = await supabase
     .from('plan_limits')
     .select('*')
     .eq('plan', req.user.plan)
-    .single();
+    .maybeSingle();
 
-  if (!limits) return res.status(500).json({ error: 'Plan not found' });
+  // Default to free plan limits if not found
+  const planLimits = limits || { monthly_messages: 500, max_sessions: 1, api_calls_per_minute: 10 };
 
   const sent = usage?.messages_sent || 0;
 
-  // -1 means unlimited (pro plan)
-  if (limits.monthly_messages !== -1 && sent >= limits.monthly_messages) {
+  if (planLimits.monthly_messages !== -1 && sent >= planLimits.monthly_messages) {
     return res.status(429).json({
       error: 'Monthly message limit reached',
-      limit: limits.monthly_messages,
+      limit: planLimits.monthly_messages,
       used: sent,
-      upgrade_url: `${process.env.FRONTEND_URL}/billing`,
     });
   }
 
-  req.planLimits = limits;
+  req.planLimits = planLimits;
   req.currentUsage = sent;
   next();
 }

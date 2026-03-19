@@ -1,13 +1,26 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import supabase from '../lib/supabase.js';
-import { requireApiKey } from '../middleware/auth.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireApiKey, requireAuth } from '../middleware/auth.js';
 import { checkPlanLimits, incrementUsage } from '../middleware/planLimits.js';
 import { renderTemplate, extractVariables } from '../services/templateEngine.js';
 import { enqueueCampaign } from '../workers/messageWorker.js';
 
 const router = express.Router();
+
+// Middleware that accepts EITHER a JWT token (dashboard) OR an API key (external)
+async function requireAuthOrApiKey(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing authorization header' });
+  }
+  const token = authHeader.slice(7);
+  // API keys start with wabk_
+  if (token.startsWith('wabk_')) {
+    return requireApiKey(req, res, next);
+  }
+  return requireAuth(req, res, next);
+}
 
 /**
  * POST /v1/messages/send
@@ -15,7 +28,7 @@ const router = express.Router();
  */
 router.post(
   '/send',
-  requireApiKey,
+  requireAuthOrApiKey,
   checkPlanLimits,
   [
     body('template').isString().notEmpty(),
@@ -50,19 +63,21 @@ router.post(
       .eq('plan', req.user.plan)
       .single();
 
+    const monthlyLimit = limits?.monthly_messages ?? 500;
+
     const month = new Date().toISOString().slice(0, 7);
     const { data: usage } = await supabase
       .from('usage')
       .select('messages_sent')
       .eq('user_id', userId)
       .eq('month', month)
-      .single();
+      .maybeSingle();
 
     const sent = usage?.messages_sent || 0;
     let allowedCount = messages.length;
 
-    if (limits.monthly_messages !== -1) {
-      const remaining = limits.monthly_messages - sent;
+    if (monthlyLimit !== -1) {
+      const remaining = monthlyLimit - sent;
       if (remaining <= 0) {
         return res.status(429).json({ error: 'Monthly limit reached. Upgrade your plan.' });
       }
