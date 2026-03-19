@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WaBulk — WhatsApp Notification API for Businesses</title>
+  <meta name="description" content="Send personalized WhatsApp notifications at scale. Order confirmations, membership alerts, payment receipts — all via a simple REST API." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --wa: #25D366;
+      --wa-dark: #1fb855;
+      --bg: #080c09;
+      --bg2: #0d1510;
+      --bg3: #111e14;
+      --border: #1a2c1e;
+      --text: #e4ede6;
+      --muted: #6a8f72;
+      --faint: #2a3d2e;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Grid bg ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.35;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 48px;
+      height: 64px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8, 12, 9, 0.85);
+      backdrop-filter: blur(12px);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--text);
+    }
+
+    .logo-icon {
+      width: 34px; height: 34px;
+      background: var(--wa);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg { width: 18px; height: 18px; fill: #000; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 14px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      transition: color .2s, background .2s;
+    }
+
+    .nav-links a:hover { color: var(--text); background: var(--bg3); }
+
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--wa);
+      color: #000;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 9px 22px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: background .2s, transform .15s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-cta:hover { background: var(--wa-dark); transform: translateY(-1px); }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 14px;
+      padding: 9px 22px;
+      border-radius: 10px;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: color .2s, border-color .2s, background .2s;
+    }
+
+    .btn-outline:hover { color: var(--text); border-color: var(--faint); background: var(--bg3); }
+
+    /* ── Sections ── */
+    section { position: relative; z-index: 1; }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 100px 24px 80px;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 13px;
+      color: var(--wa);
+      margin-bottom: 32px;
+      animation: fadeUp .6s ease both;
+    }
+
+    .hero-badge span { width: 7px; height: 7px; background: var(--wa); border-radius: 50%; animation: pulse 1.8s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(.8); }
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(42px, 7vw, 84px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      color: var(--text);
+      max-width: 900px;
+      animation: fadeUp .7s .1s ease both;
+    }
+
+    h1 .accent { color: var(--wa); }
+
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--muted);
+      max-width: 560px;
+      margin: 24px auto 40px;
+      line-height: 1.65;
+      animation: fadeUp .7s .2s ease both;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeUp .7s .3s ease both;
+    }
+
+    .hero-metrics {
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      margin-top: 72px;
+      flex-wrap: wrap;
+      animation: fadeUp .7s .4s ease both;
+    }
+
+    .metric { text-align: center; }
+    .metric-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .metric-label { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Code window ── */
+    .code-window-wrap {
+      max-width: 840px;
+      margin: 80px auto 0;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+      animation: fadeUp .8s .5s ease both;
+    }
+
+    .code-window {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .code-title-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: var(--wa); }
+
+    .code-title-bar span {
+      margin-left: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    pre {
+      padding: 24px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #a8c4ae;
+    }
+
+    .c-key { color: #60a5fa; }
+    .c-str { color: #86efac; }
+    .c-op  { color: var(--wa); }
+    .c-com { color: var(--faint); }
+    .c-num { color: #fb923c; }
+
+    /* ── Use cases ── */
+    .section-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 100px 24px;
+    }
+
+    .section-tag {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--wa);
+      background: rgba(37, 211, 102, .08);
+      border: 1px solid rgba(37, 211, 102, .2);
+      border-radius: 100px;
+      padding: 4px 14px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: var(--text);
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+
+    .section-sub {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 540px;
+      line-height: 1.6;
+    }
+
+    .use-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 56px;
+    }
+
+    .use-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      transition: border-color .2s, background .2s;
+    }
+
+    .use-card:hover { border-color: var(--faint); background: var(--bg3); }
+
+    .use-icon {
+      width: 42px; height: 42px;
+      background: rgba(37, 211, 102, .08);
+      border: 1px solid rgba(37, 211, 102, .15);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 16px;
+    }
+
+    .use-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .use-desc  { font-size: 14px; color: var(--muted); line-height: 1.55; }
+    .use-example {
+      margin-top: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--wa);
+      background: rgba(37, 211, 102, .06);
+      border: 1px solid rgba(37, 211, 102, .12);
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+
+    /* ── How it works ── */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 2px;
+      margin-top: 56px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .step-card {
+      background: var(--bg2);
+      padding: 32px 28px;
+      position: relative;
+    }
+
+    .step-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 48px;
+      font-weight: 800;
+      color: var(--faint);
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+
+    .step-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .step-desc  { font-size: 14px; color: var(--muted); line-height: 1.55; }
+
+    /* ── Pricing ── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 56px;
+      max-width: 900px;
+    }
+
+    .price-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .price-card.featured {
+      border-color: var(--wa);
+      background: rgba(37, 211, 102, .03);
+      position: relative;
+    }
+
+    .price-badge {
+      position: absolute;
+      top: -1px; right: 24px;
+      background: var(--wa);
+      color: #000;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 0 0 8px 8px;
+    }
+
+    .plan-name { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .plan-price {
+      font-family: 'Syne', sans-serif;
+      font-size: 40px;
+      font-weight: 800;
+      color: var(--text);
+      margin: 12px 0;
+    }
+    .plan-price sup { font-size: 20px; vertical-align: top; margin-top: 10px; }
+    .plan-price span { font-size: 15px; font-weight: 400; color: var(--muted); }
+    .plan-msgs { font-size: 14px; color: var(--wa); margin-bottom: 24px; }
+
+    .plan-features { flex: 1; list-style: none; space-y: 10px; margin-bottom: 28px; }
+    .plan-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--muted);
+      padding: 5px 0;
+    }
+    .plan-features li .check { color: var(--wa); flex-shrink: 0; margin-top: 1px; }
+    .plan-features li .cross { color: var(--faint); flex-shrink: 0; margin-top: 1px; }
+
+    /* ── FAQ ── */
+    .faq-list { max-width: 720px; margin-top: 48px; }
+    details {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+    }
+    summary {
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '+'; font-size: 20px; color: var(--muted); flex-shrink: 0; }
+    details[open] summary::after { content: '−'; color: var(--wa); }
+    details p { font-size: 15px; color: var(--muted); margin-top: 12px; line-height: 1.65; }
+
+    /* ── CTA strip ── */
+    .cta-strip {
+      background: var(--bg3);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      padding: 80px 24px;
+    }
+
+    .cta-strip h2 { margin-bottom: 12px; }
+    .cta-strip p { font-size: 17px; color: var(--muted); margin-bottom: 36px; }
+
+    /* ── Footer ── */
+    footer {
+      padding: 40px 48px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      footer { flex-direction: column; gap: 16px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <a href="/" class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.124 1.533 5.855L0 24l6.29-1.51A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.875 9.875 0 01-5.031-1.375l-.36-.214-3.733.895.945-3.617-.235-.373A9.875 9.875 0 012.118 12C2.118 6.527 6.527 2.118 12 2.118c5.473 0 9.882 4.409 9.882 9.882 0 5.473-4.409 9.882-9.882 9.882z"/></svg>
+    </div>
+    WaBulk
+  </a>
+  <div class="nav-links">
+    <a href="#use-cases">Use cases</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
+  </div>
+  <div style="display:flex; gap:10px; align-items:center;">
+    <a href="/app/login" class="btn-outline">Sign in</a>
+    <a href="/app/signup" class="btn-cta">Get started free</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge">
+    <span></span> Now live — 500 free messages/month
+  </div>
+  <h1>Send WhatsApp<br/>notifications at <span class="accent">scale</span></h1>
+  <p class="hero-sub">
+    Plug a simple REST API into your app and send personalized transactional messages to thousands of users — order confirmations, membership alerts, payment receipts, and more.
+  </p>
+  <div class="hero-actions">
+    <a href="/app/signup" class="btn-cta">Start for free →</a>
+    <a href="#use-cases" class="btn-outline">See use cases</a>
+  </div>
+  <div class="hero-metrics">
+    <div class="metric"><div class="metric-num">97.5%</div><div class="metric-label">Delivery rate</div></div>
+    <div class="metric"><div class="metric-num">3s</div><div class="metric-label">Avg. send time</div></div>
+    <div class="metric"><div class="metric-num">∞</div><div class="metric-label">Variables supported</div></div>
+    <div class="metric"><div class="metric-num">REST</div><div class="metric-label">Simple API</div></div>
+  </div>
+</section>
+
+<!-- Code example -->
+<div class="code-window-wrap">
+  <div class="code-window">
+    <div class="code-title-bar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <span>POST /v1/messages/send</span>
+    </div>
+    <pre><span class="c-com">// Send personalized membership reminders to your entire user base</span>
+<span class="c-key">const</span> response = <span class="c-key">await</span> fetch(<span class="c-str">"https://api.wabulk.com/v1/messages/send"</span>, {
+  method: <span class="c-str">"POST"</span>,
+  headers: { <span class="c-str">"Authorization"</span>: <span class="c-str">"Bearer wabk_live_..."</span> },
+  body: JSON.stringify({
+    <span class="c-key">session_id</span>: <span class="c-str">"your-wa-number-uuid"</span>,
+    <span class="c-key">template</span>: <span class="c-str">"Hi {{name}}, your {{plan}} membership expires in {{days}} days. Renew: {{link}}"</span>,
+    <span class="c-key">messages</span>: [
+      { to: <span class="c-str">"+919876543210"</span>, vars: { name: <span class="c-str">"Rahul"</span>, plan: <span class="c-str">"Gold"</span>, days: <span class="c-num">3</span>, link: <span class="c-str">"https://..."</span> } },
+      { to: <span class="c-str">"+918800001234"</span>, vars: { name: <span class="c-str">"Priya"</span>, plan: <span class="c-str">"Silver"</span>, days: <span class="c-num">7</span>, link: <span class="c-str">"https://..."</span> } },
+      <span class="c-com">// ... 1000s more</span>
+    ],
+    <span class="c-key">delay_ms</span>: <span class="c-num">3000</span>  <span class="c-com">// humanized delay between sends</span>
+  })
+});
+<span class="c-com">// → { campaign_id: "uuid", queued: 2, message: "2 messages queued" }</span></pre>
+  </div>
+</div>
+
+<!-- Use cases -->
+<section id="use-cases">
+  <div class="section-inner">
+    <div class="section-tag">Use cases</div>
+    <h2>Built for transactional<br/>notifications</h2>
+    <p class="section-sub">Any time your business needs to reach a user with important, personalized information — WaBulk delivers it.</p>
+
+    <div class="use-grid">
+      <div class="use-card">
+        <div class="use-icon">🛍️</div>
+        <div class="use-title">Order confirmations</div>
+        <div class="use-desc">Instantly notify customers when orders are placed, shipped, or delivered.</div>
+        <div class="use-example">Hi {{name}}, order #{{order_id}} confirmed! Delivery by {{date}}.</div>
+      </div>
+      <div class="use-card">
+        <div class="use-icon">🏋️</div>
+        <div class="use-title">Membership renewals</div>
+        <div class="use-desc">Remind gym, club, or subscription members before their plan expires.</div>
+        <div class="use-example">{{name}}, your {{plan}} expires in {{days}} days. Renew at {{link}}.</div>
+      </div>
+      <div class="use-card">
+        <div class="use-icon">💳</div>
+        <div class="use-title">Payment receipts</div>
+        <div class="use-desc">Send instant payment confirmations with amount, date, and transaction ID.</div>
+        <div class="use-example">₹{{amount}} received on {{date}} via {{method}}. Ref: {{txn_id}}.</div>
+      </div>
+      <div class="use-card">
+        <div class="use-icon">📅</div>
+        <div class="use-title">Appointment reminders</div>
+        <div class="use-desc">Reduce no-shows by reminding patients, clients, or students before their slot.</div>
+        <div class="use-example">Reminder: {{name}} at {{clinic}} on {{date}} at {{time}}.</div>
+      </div>
+      <div class="use-card">
+        <div class="use-icon">🏫</div>
+        <div class="use-title">School fee alerts</div>
+        <div class="use-desc">Notify parents about due fees, exam schedules, and school updates.</div>
+        <div class="use-example">Fee of ₹{{amount}} for {{student}} due on {{date}}. Pay: {{link}}.</div>
+      </div>
+      <div class="use-card">
+        <div class="use-icon">📦</div>
+        <div class="use-title">Stock & restock alerts</div>
+        <div class="use-desc">Notify customers when a product they want is back in stock.</div>
+        <div class="use-example">Good news {{name}}! {{product}} is back in stock. Order: {{link}}.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section id="how-it-works" style="background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="section-inner">
+    <div class="section-tag">How it works</div>
+    <h2>Up and running<br/>in 10 minutes</h2>
+    <p class="section-sub">No Meta BSP approval required. Connect your WhatsApp Business account and you're ready to go.</p>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <div class="step-title">Create an account</div>
+        <div class="step-desc">Sign up free. No credit card required. 500 messages included every month.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <div class="step-title">Connect your WhatsApp</div>
+        <div class="step-desc">Scan a QR code to link your business WhatsApp number. Takes 30 seconds.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <div class="step-title">Create templates</div>
+        <div class="step-desc">Write message templates with <code style="color:var(--wa); font-family: monospace;">{{variables}}</code> for dynamic personalisation.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">04</div>
+        <div class="step-title">Call the API</div>
+        <div class="step-desc">POST recipients + variable data to our API. Messages send automatically with humanized delays.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing">
+  <div class="section-inner">
+    <div class="section-tag">Pricing</div>
+    <h2>Simple pricing,<br/>no surprises</h2>
+    <p class="section-sub">Start free. Pay only when you need more. No setup fees, no contracts.</p>
+
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-price"><sup>₹</sup>0<span>/mo</span></div>
+        <div class="plan-msgs">500 messages/month</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> 1 WhatsApp number</li>
+          <li><span class="check">✓</span> API access</li>
+          <li><span class="check">✓</span> Message templates</li>
+          <li><span class="check">✓</span> Campaign dashboard</li>
+          <li><span class="cross">✗</span> Webhooks</li>
+          <li><span class="cross">✗</span> Scheduled sending</li>
+        </ul>
+        <a href="/app/signup" class="btn-outline" style="text-align:center; justify-content:center;">Get started free</a>
+      </div>
+
+      <div class="price-card featured">
+        <div class="price-badge">Most popular</div>
+        <div class="plan-name">Starter</div>
+        <div class="plan-price"><sup>₹</sup>999<span>/mo</span></div>
+        <div class="plan-msgs">10,000 messages/month</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> 3 WhatsApp numbers</li>
+          <li><span class="check">✓</span> API access</li>
+          <li><span class="check">✓</span> All template features</li>
+          <li><span class="check">✓</span> Delivery webhooks</li>
+          <li><span class="check">✓</span> Scheduled campaigns</li>
+          <li><span class="check">✓</span> Media messages</li>
+        </ul>
+        <a href="/app/signup" class="btn-cta" style="text-align:center; justify-content:center;">Start Starter plan</a>
+      </div>
+
+      <div class="price-card">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price"><sup>₹</sup>3,999<span>/mo</span></div>
+        <div class="plan-msgs">Unlimited messages</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> 10 WhatsApp numbers</li>
+          <li><span class="check">✓</span> Everything in Starter</li>
+          <li><span class="check">✓</span> Priority support</li>
+          <li><span class="check">✓</span> Dedicated account manager</li>
+          <li><span class="check">✓</span> Custom sender name</li>
+          <li><span class="check">✓</span> SLA guarantee</li>
+        </ul>
+        <a href="/app/signup" class="btn-outline" style="text-align:center; justify-content:center;">Start Pro plan</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="background: var(--bg2); border-top: 1px solid var(--border);">
+  <div class="section-inner">
+    <div class="section-tag">FAQ</div>
+    <h2>Common questions</h2>
+
+    <div class="faq-list">
+      <details open>
+        <summary>Do I need a Meta Business account or BSP approval?</summary>
+        <p>No. WaBulk works by connecting your existing WhatsApp Business number directly via QR scan. You don't need any Meta approval, BSP partnership, or phone number verification process — just scan once and start sending.</p>
+      </details>
+      <details>
+        <summary>What kind of messages can I send?</summary>
+        <p>WaBulk is built strictly for informational and transactional notifications — order confirmations, membership reminders, payment receipts, appointment alerts, etc. Promotional or spam content is not permitted and will result in account suspension.</p>
+      </details>
+      <details>
+        <summary>Will my WhatsApp account get banned?</summary>
+        <p>We minimize this risk by enforcing humanized delays between messages (2–8 seconds), preventing duplicate sends, and limiting daily send volumes. Accounts are safest when sending legitimate transactional content to existing customers who expect messages from you.</p>
+      </details>
+      <details>
+        <summary>How do dynamic variables work?</summary>
+        <p>Use <code style="color:var(--wa); font-family:monospace">{{variable_name}}</code> anywhere in your template. Pass the values per recipient in the <code style="color:var(--wa); font-family:monospace">vars</code> object when calling the API. We replace every placeholder before sending — so each recipient gets a fully personalized message.</p>
+      </details>
+      <details>
+        <summary>Can I use this from any programming language?</summary>
+        <p>Yes. WaBulk is a plain REST API with JSON. Any language that can make HTTP requests works — Node.js, Python, PHP, Ruby, Go, Java, no-code tools like Zapier and Make, and more. We provide code examples for the most popular environments.</p>
+      </details>
+      <details>
+        <summary>What happens if I hit my monthly limit?</summary>
+        <p>The API returns a 429 error with a clear message. Queued messages beyond the limit are skipped. You can upgrade your plan at any time during the month and the new limit applies immediately.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- CTA strip -->
+<div class="cta-strip">
+  <div class="section-tag">Get started</div>
+  <h2>Ready to reach your users<br/>on WhatsApp?</h2>
+  <p>500 free messages every month. No credit card required. Up and running in 10 minutes.</p>
+  <a href="/app/signup" class="btn-cta" style="font-size:16px; padding:12px 32px;">
+    Create your free account →
+  </a>
+</div>
+
+<!-- Footer -->
+<footer>
+  <a href="/" class="logo" style="font-size:15px;">
+    <div class="logo-icon" style="width:28px;height:28px;">
+      <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:#000"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.124 1.533 5.855L0 24l6.29-1.51A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.875 9.875 0 01-5.031-1.375l-.36-.214-3.733.895.945-3.617-.235-.373A9.875 9.875 0 012.118 12C2.118 6.527 6.527 2.118 12 2.118c5.473 0 9.882 4.409 9.882 9.882 0 5.473-4.409 9.882-9.882 9.882z"/></svg>
+    </div>
+    WaBulk
+  </a>
+  <div style="display:flex; gap:24px;">
+    <a href="#pricing">Pricing</a>
+    <a href="/docs">API Docs</a>
+    <a href="mailto:support@wabulk.com">Support</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+  </div>
+  <div>© 2025 WaBulk. All rights reserved.</div>
+</footer>
+
+</body>
+</html>
