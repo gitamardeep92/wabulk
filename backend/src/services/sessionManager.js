@@ -3,9 +3,23 @@ const { Client, RemoteAuth } = pkg;
 import qrcode from 'qrcode';
 import supabase from '../lib/supabase.js';
 import { SupabaseStore } from './supabaseStore.js';
+import puppeteer from 'puppeteer';
 
 // In-memory map: sessionId -> Client instance
 const clients = new Map();
+
+// Get the path to puppeteer's bundled Chromium
+// This works on Render, Railway, and local Mac without needing system Chrome
+async function getChromiumPath() {
+  try {
+    const browserFetcher = puppeteer.createBrowserFetcher();
+    const executablePath = puppeteer.executablePath();
+    return executablePath;
+  } catch {
+    // Fallback — let whatsapp-web.js find chrome itself
+    return undefined;
+  }
+}
 
 export async function createSession(sessionId, userId) {
   if (clients.has(sessionId)) {
@@ -16,15 +30,17 @@ export async function createSession(sessionId, userId) {
   console.log(`[WA] Creating session ${sessionId}`);
 
   const store = new SupabaseStore();
+  const executablePath = await getChromiumPath();
 
   const client = new Client({
     authStrategy: new RemoteAuth({
       clientId: sessionId,
       store,
-      backupSyncIntervalMs: 60000, // sync to Supabase every 60s
+      backupSyncIntervalMs: 60000,
     }),
     puppeteer: {
       headless: true,
+      executablePath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -34,6 +50,15 @@ export async function createSession(sessionId, userId) {
         '--no-zygote',
         '--single-process',
         '--disable-gpu',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--disable-sync',
+        '--disable-translate',
+        '--hide-scrollbars',
+        '--metrics-recording-only',
+        '--mute-audio',
+        '--safebrowsing-disable-auto-update',
       ],
     },
   });
