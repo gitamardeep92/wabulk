@@ -13,6 +13,7 @@ import messageRoutes from './routes/messages.js';
 import templateRoutes from './routes/templates.js';
 import adminRoutes from './routes/admin.js';
 import webhookRoutes from './routes/webhooks.js';
+import contactRoutes from './routes/contacts.js';
 
 import { startWorker } from './workers/messageWorker.js';
 import { restoreAllSessions } from './services/sessionManager.js';
@@ -71,6 +72,7 @@ app.use('/v1/messages', apiLimiter, messageRoutes);
 app.use('/templates', templateRoutes);
 app.use('/admin-api', adminRoutes);
 app.use('/webhooks', webhookRoutes);
+app.use('/contacts', contactRoutes);
 
 // ── Static file serving ───────────────────────────────────
 

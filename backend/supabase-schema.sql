@@ -190,3 +190,62 @@ create index on public.campaigns(status);
 create index on public.wa_sessions(user_id);
 create index on public.usage(user_id, month);
 create index on public.api_keys(key_hash);
+
+-- ============================================================
+-- CONTACTS TABLE
+-- ============================================================
+create table if not exists public.contacts (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references public.users(id) on delete cascade,
+  name text not null,
+  phone text not null,
+  email text,
+  custom_data jsonb default '{}',   -- any extra fields from CSV
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id, phone)
+);
+
+-- ============================================================
+-- CONTACT GROUPS TABLE
+-- ============================================================
+create table if not exists public.contact_groups (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references public.users(id) on delete cascade,
+  name text not null,
+  description text,
+  contact_count integer default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- ============================================================
+-- CONTACT GROUP MEMBERS
+-- ============================================================
+create table if not exists public.contact_group_members (
+  group_id uuid references public.contact_groups(id) on delete cascade,
+  contact_id uuid references public.contacts(id) on delete cascade,
+  primary key (group_id, contact_id)
+);
+
+-- Indexes
+create index if not exists on public.contacts(user_id);
+create index if not exists on public.contact_groups(user_id);
+create index if not exists on public.contact_group_members(group_id);
+create index if not exists on public.contact_group_members(contact_id);
+
+-- Function to keep contact_count updated
+create or replace function update_group_contact_count()
+returns trigger language plpgsql as $$
+begin
+  if (TG_OP = 'INSERT') then
+    update contact_groups set contact_count = contact_count + 1 where id = NEW.group_id;
+  elsif (TG_OP = 'DELETE') then
+    update contact_groups set contact_count = contact_count - 1 where id = OLD.group_id;
+  end if;
+  return null;
+end; $$;
+
+create or replace trigger trg_group_count
+after insert or delete on public.contact_group_members
+for each row execute function update_group_contact_count();

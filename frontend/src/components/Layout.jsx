@@ -3,13 +3,14 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Smartphone, FileText, Send,
   Key, BookOpen, CreditCard, Settings, LogOut,
-  MessageSquare, ChevronLeft, ChevronRight, Bell,
+  MessageSquare, ChevronLeft, ChevronRight, Users,
 } from 'lucide-react';
 import { useAuthStore } from '../hooks/useAuth';
 
 const nav = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { to: '/sessions', icon: Smartphone, label: 'WA Numbers' },
+  { to: '/contacts', icon: Users, label: 'Contacts' },
   { to: '/templates', icon: FileText, label: 'Templates' },
   { to: '/campaigns', icon: Send, label: 'Campaigns' },
   { to: '/api-keys', icon: Key, label: 'API Keys' },

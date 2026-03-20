@@ -8,12 +8,14 @@
  * Sessions are stored in Supabase so they survive Render redeploys.
  */
 
-import makeWASocket, {
+import pkg from '@whiskeysockets/baileys';
+const {
+  default: makeWASocket,
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   useMultiFileAuthState,
-} from '@whiskeysockets/baileys';
+} = pkg;
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import supabase from '../lib/supabase.js';
@@ -118,10 +120,13 @@ export async function createSession(sessionId, userId) {
     .eq('id', sessionId);
 
   try {
+    console.log(`[Baileys] Fetching latest WA version...`);
     const { version } = await fetchLatestBaileysVersion();
     console.log(`[Baileys] Using WA version ${version.join('.')}`);
 
+    console.log(`[Baileys] Loading auth state for ${sessionId}...`);
     const { state, saveCreds } = await getSupabaseAuthState(sessionId);
+    console.log(`[Baileys] Auth state loaded, creating socket...`);
 
     const sock = makeWASocket({
       version,
@@ -287,6 +292,7 @@ export async function restoreAllSessions() {
       await new Promise((r) => setTimeout(r, 2000));
     } catch (err) {
       console.error(`[Baileys] Failed to restore ${session.id}:`, err.message);
+      // Mark as disconnected so user knows to reconnect
       await supabase
         .from('wa_sessions')
         .update({ status: 'disconnected', updated_at: new Date().toISOString() })
@@ -294,7 +300,26 @@ export async function restoreAllSessions() {
     }
   }
 
-  console.log('[Baileys] Session restore complete');
+  // After 30s, check which sessions actually connected
+  // Any that are still 'connected' in DB but not in memory = logout from phone
+  setTimeout(async () => {
+    const { data: stillConnected } = await supabase
+      .from('wa_sessions')
+      .select('id, phone_number')
+      .eq('status', 'connected');
+
+    for (const s of (stillConnected || [])) {
+      if (!clients.has(s.id)) {
+        console.log(`[Baileys] Session ${s.phone_number || s.id} not in memory after 30s — marking disconnected`);
+        await supabase
+          .from('wa_sessions')
+          .update({ status: 'disconnected', updated_at: new Date().toISOString() })
+          .eq('id', s.id);
+      }
+    }
+  }, 30000);
+
+  console.log('[Baileys] Session restore initiated');
 }
 
 export { clients };

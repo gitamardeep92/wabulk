@@ -11,6 +11,7 @@ import Templates from './pages/Templates';
 import Campaigns from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
 import ApiKeys from './pages/ApiKeys';
+import Contacts from './pages/Contacts';
 
 function Protected({ children }) {
   const { user, loading } = useAuthStore();
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="campaigns" element={<Campaigns />} />
           <Route path="campaigns/:id" element={<CampaignDetail />} />
           <Route path="api-keys" element={<ApiKeys />} />
+          <Route path="contacts" element={<Contacts />} />
           <Route path="docs" element={<Docs />} />
           <Route path="billing" element={<Billing />} />
           <Route path="settings" element={<Settings />} />
