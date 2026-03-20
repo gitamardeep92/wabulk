@@ -1,13 +1,3 @@
-/**
- * sessionManager.js — Baileys-based WhatsApp session manager
- *
- * Uses @whiskeysockets/baileys which connects to WhatsApp
- * directly via WebSocket. No Chrome, no Puppeteer, no browser.
- * Memory usage: ~50MB vs ~400MB for whatsapp-web.js
- *
- * Sessions are stored in Supabase so they survive Render redeploys.
- */
-
 import pkg from '@whiskeysockets/baileys';
 const {
   default: makeWASocket,
@@ -24,37 +14,29 @@ import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
 
-// Silent logger — Baileys is very verbose by default
-const logger = pino({ level: 'silent' });
-
-// In-memory map: sessionId → socket instance
+// Show warnings and errors from Baileys in Render logs
+// but suppress the very verbose info/debug messages
+const logger = pino({ level: 'warn' });
 const clients = new Map();
-
-// Temp directory for Baileys auth files (per session)
 const AUTH_DIR = path.join(process.cwd(), '.baileys-auth');
 
 function sessionAuthPath(sessionId) {
   return path.join(AUTH_DIR, sessionId);
 }
 
-/**
- * Load session auth state from Supabase into a temp folder,
- * then use Baileys' useMultiFileAuthState on that folder.
- * On save, sync back to Supabase.
- */
 async function getSupabaseAuthState(sessionId) {
   const authPath = sessionAuthPath(sessionId);
   await fsp.mkdir(authPath, { recursive: true });
 
-  // Load existing auth files from Supabase into temp folder
+  // Load saved auth files from Supabase
   const { data: session } = await supabase
     .from('wa_sessions')
     .select('session_data')
     .eq('id', sessionId)
-    .single();
+    .maybeSingle();
 
   if (session?.session_data && Object.keys(session.session_data).length > 0) {
-    console.log(`[Baileys] Restoring auth files for ${sessionId}`);
+    console.log(`[Baileys] Loading saved auth for ${sessionId}`);
     for (const [filename, b64] of Object.entries(session.session_data)) {
       const filePath = path.join(authPath, filename);
       await fsp.mkdir(path.dirname(filePath), { recursive: true });
@@ -62,57 +44,65 @@ async function getSupabaseAuthState(sessionId) {
     }
   }
 
-  // Use Baileys' built-in multi-file auth state on the temp folder
   const { state, saveCreds } = await useMultiFileAuthState(authPath);
 
-  // Wrap saveCreds to also sync back to Supabase
+  // Sync credentials back to Supabase after every save
   const saveCredsAndSync = async () => {
-    await saveCreds(); // save to local temp folder first
-
-    // Read all files from temp folder and store as base64 in Supabase
-    const files = {};
-    const entries = await fsp.readdir(authPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isFile()) {
-        const data = await fsp.readFile(path.join(authPath, entry.name));
-        files[entry.name] = data.toString('base64');
+    await saveCreds();
+    try {
+      const files = {};
+      const entries = await fsp.readdir(authPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile()) {
+          const data = await fsp.readFile(path.join(authPath, entry.name));
+          files[entry.name] = data.toString('base64');
+        }
       }
+      await supabase
+        .from('wa_sessions')
+        .update({ session_data: files, updated_at: new Date().toISOString() })
+        .eq('id', sessionId);
+    } catch (err) {
+      console.warn(`[Baileys] Failed to sync creds for ${sessionId}:`, err.message);
     }
-
-    await supabase
-      .from('wa_sessions')
-      .update({
-        session_data: files,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', sessionId);
-
-    console.log(`[Baileys] Auth saved to Supabase for ${sessionId} (${Object.keys(files).length} files)`);
   };
 
   return { state, saveCreds: saveCredsAndSync };
 }
 
-/**
- * Clean up temp auth folder for a session
- */
 async function cleanupAuthFolder(sessionId) {
   const authPath = sessionAuthPath(sessionId);
   if (fs.existsSync(authPath)) {
-    await fsp.rm(authPath, { recursive: true, force: true });
+    try {
+      await fsp.rm(authPath, { recursive: true, force: true });
+    } catch {}
   }
 }
 
-/**
- * Create a new Baileys WhatsApp session
- */
+// Check if a session still exists in the DB
+async function sessionExistsInDb(sessionId) {
+  const { data } = await supabase
+    .from('wa_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .maybeSingle();
+  return !!data;
+}
+
 export async function createSession(sessionId, userId) {
   if (clients.has(sessionId)) {
     console.log(`[Baileys] Session ${sessionId} already in memory`);
     return { status: 'already_exists' };
   }
 
-  console.log(`[Baileys] Creating session ${sessionId}`);
+  // Check session still exists in DB before proceeding
+  const exists = await sessionExistsInDb(sessionId);
+  if (!exists) {
+    console.log(`[Baileys] Session ${sessionId} no longer in DB, skipping`);
+    return { status: 'not_found' };
+  }
+
+  console.log(`[Baileys] Starting session ${sessionId}`);
 
   await supabase
     .from('wa_sessions')
@@ -120,13 +110,22 @@ export async function createSession(sessionId, userId) {
     .eq('id', sessionId);
 
   try {
-    console.log(`[Baileys] Fetching latest WA version...`);
-    const { version } = await fetchLatestBaileysVersion();
-    console.log(`[Baileys] Using WA version ${version.join('.')}`);
-
-    console.log(`[Baileys] Loading auth state for ${sessionId}...`);
+    // fetchLatestBaileysVersion makes an HTTP call to WA servers
+    // Use a timeout so it doesn't hang forever on Render free tier
+    let version;
+    try {
+      const result = await Promise.race([
+        fetchLatestBaileysVersion(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+      ]);
+      version = result.version;
+      console.log(`[Baileys] WA version: ${version.join('.')}`);
+    } catch (err) {
+      // Fallback to a known working version if fetch fails or times out
+      version = [2, 3000, 1023504987];
+      console.log(`[Baileys] Using fallback WA version: ${version.join('.')} (fetch failed: ${err.message})`);
+    }
     const { state, saveCreds } = await getSupabaseAuthState(sessionId);
-    console.log(`[Baileys] Auth state loaded, creating socket...`);
 
     const sock = makeWASocket({
       version,
@@ -138,38 +137,39 @@ export async function createSession(sessionId, userId) {
       printQRInTerminal: false,
       generateHighQualityLinkPreview: false,
       syncFullHistory: false,
+      connectTimeoutMs: 30000,
+      defaultQueryTimeoutMs: 20000,
     });
 
     clients.set(sessionId, sock);
 
-    // ── QR code event ──────────────────────────────────────
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
+      // QR ready to scan
       if (qr) {
-        console.log(`[Baileys] QR generated for session ${sessionId}`);
-        const qrBase64 = await qrcode.toDataURL(qr);
-        await supabase
-          .from('wa_sessions')
-          .update({
-            status: 'qr_ready',
-            qr_code: qrBase64,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', sessionId);
+        console.log(`[Baileys] QR ready for ${sessionId}`);
+        try {
+          const qrBase64 = await qrcode.toDataURL(qr);
+          await supabase
+            .from('wa_sessions')
+            .update({ status: 'qr_ready', qr_code: qrBase64, updated_at: new Date().toISOString() })
+            .eq('id', sessionId);
+        } catch (err) {
+          console.error(`[Baileys] Failed to save QR for ${sessionId}:`, err.message);
+        }
       }
 
+      // Successfully connected
       if (connection === 'open') {
-        console.log(`[Baileys] Session ${sessionId} connected!`);
+        console.log(`[Baileys] Connected: ${sessionId}`);
         const phoneNumber = sock.user?.id?.split(':')[0] || sock.user?.id?.split('@')[0];
-        const displayName = sock.user?.name || '';
-
         await supabase
           .from('wa_sessions')
           .update({
             status: 'connected',
             phone_number: phoneNumber ? `+${phoneNumber}` : null,
-            display_name: displayName,
+            display_name: sock.user?.name || '',
             qr_code: null,
             connected_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -177,120 +177,99 @@ export async function createSession(sessionId, userId) {
           .eq('id', sessionId);
       }
 
+      // Disconnected
       if (connection === 'close') {
         const statusCode = (lastDisconnect?.error instanceof Boom)
           ? lastDisconnect.error.output?.statusCode
           : 0;
 
-        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-        console.log(`[Baileys] Session ${sessionId} closed. Status: ${statusCode}. Reconnect: ${shouldReconnect}`);
-
+        console.log(`[Baileys] Closed ${sessionId} — code: ${statusCode}`);
         clients.delete(sessionId);
 
-        if (shouldReconnect) {
-          // Auto-reconnect after a short delay
-          console.log(`[Baileys] Reconnecting session ${sessionId} in 5s...`);
-          setTimeout(() => createSession(sessionId, userId), 5000);
-        } else {
-          // Logged out — clear session data
-          console.log(`[Baileys] Session ${sessionId} logged out, clearing data`);
+        const loggedOut = statusCode === DisconnectReason.loggedOut;
+        const sessionGone = statusCode === 401 || statusCode === 403;
+
+        if (loggedOut || sessionGone) {
+          // User logged out from phone — clean up completely
+          console.log(`[Baileys] Logged out: ${sessionId}`);
           await cleanupAuthFolder(sessionId);
-          await supabase
-            .from('wa_sessions')
-            .update({
-              status: 'disconnected',
-              session_data: {},
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', sessionId);
+          // Only update if session still exists in DB
+          const stillExists = await sessionExistsInDb(sessionId);
+          if (stillExists) {
+            await supabase
+              .from('wa_sessions')
+              .update({ status: 'disconnected', session_data: {}, updated_at: new Date().toISOString() })
+              .eq('id', sessionId);
+          }
+        } else {
+          // Network error or timeout — try to reconnect
+          // But ONLY if session still exists in DB (not manually deleted)
+          const stillExists = await sessionExistsInDb(sessionId);
+          if (stillExists) {
+            console.log(`[Baileys] Network issue, reconnecting ${sessionId} in 8s...`);
+            setTimeout(() => createSession(sessionId, userId), 8000);
+          } else {
+            console.log(`[Baileys] Session ${sessionId} was deleted, not reconnecting`);
+          }
         }
       }
     });
 
-    // ── Save credentials whenever they update ──────────────
     sock.ev.on('creds.update', saveCreds);
 
     return { status: 'initializing' };
 
   } catch (err) {
-    console.error(`[Baileys] Failed to create session ${sessionId}:`, err.message);
+    console.error(`[Baileys] Error creating session ${sessionId}:`, err.message);
     clients.delete(sessionId);
-    await supabase
-      .from('wa_sessions')
-      .update({ status: 'disconnected', updated_at: new Date().toISOString() })
-      .eq('id', sessionId);
+    // Only update DB if session still exists
+    const stillExists = await sessionExistsInDb(sessionId);
+    if (stillExists) {
+      await supabase
+        .from('wa_sessions')
+        .update({ status: 'disconnected', updated_at: new Date().toISOString() })
+        .eq('id', sessionId);
+    }
     throw err;
   }
 }
 
-/**
- * Send a text message via a session
- */
 export async function sendMessage(sessionId, toNumber, message) {
   const sock = clients.get(sessionId);
-  if (!sock) {
-    throw new Error(`Session ${sessionId} not found or not connected`);
-  }
-
-  // Format: strip non-digits, add @s.whatsapp.net
+  if (!sock) throw new Error(`Session ${sessionId} not in memory`);
   const jid = toNumber.replace(/\D/g, '') + '@s.whatsapp.net';
-
   const result = await sock.sendMessage(jid, { text: message });
   return result?.key?.id || 'sent';
 }
 
-/**
- * Disconnect and clean up a session
- */
 export async function disconnectSession(sessionId) {
   const sock = clients.get(sessionId);
   if (sock) {
-    try {
-      await sock.logout();
-    } catch (err) {
-      console.warn(`[Baileys] logout error for ${sessionId}:`, err.message);
-    }
+    try { await sock.logout(); } catch {}
     clients.delete(sessionId);
   }
-
-  // Clean up local auth folder
-  try {
-    await cleanupAuthFolder(sessionId);
-  } catch (err) {
-    console.warn(`[Baileys] cleanup error for ${sessionId}:`, err.message);
-  }
+  try { await cleanupAuthFolder(sessionId); } catch {}
 }
 
 export function getSessionStatus(sessionId) {
   return clients.has(sessionId) ? 'in_memory' : 'not_loaded';
 }
 
-/**
- * Restore all connected sessions from Supabase on server startup
- */
 export async function restoreAllSessions() {
-  console.log('[Baileys] Restoring sessions from Supabase...');
-
+  console.log('[Baileys] Restoring sessions...');
   const { data: sessions } = await supabase
     .from('wa_sessions')
     .select('id, user_id, phone_number')
     .eq('status', 'connected');
 
-  if (!sessions?.length) {
-    console.log('[Baileys] No sessions to restore');
-    return;
-  }
-
-  console.log(`[Baileys] Restoring ${sessions.length} session(s)...`);
+  if (!sessions?.length) { console.log('[Baileys] Nothing to restore'); return; }
 
   for (const session of sessions) {
     try {
-      console.log(`[Baileys] Restoring ${session.phone_number || session.id}`);
       await createSession(session.id, session.user_id);
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 2000));
     } catch (err) {
       console.error(`[Baileys] Failed to restore ${session.id}:`, err.message);
-      // Mark as disconnected so user knows to reconnect
       await supabase
         .from('wa_sessions')
         .update({ status: 'disconnected', updated_at: new Date().toISOString() })
@@ -298,17 +277,12 @@ export async function restoreAllSessions() {
     }
   }
 
-  // After 30s, check which sessions actually connected
-  // Any that are still 'connected' in DB but not in memory = logout from phone
+  // After 30s check which sessions are still not in memory
   setTimeout(async () => {
     const { data: stillConnected } = await supabase
-      .from('wa_sessions')
-      .select('id, phone_number')
-      .eq('status', 'connected');
-
+      .from('wa_sessions').select('id').eq('status', 'connected');
     for (const s of (stillConnected || [])) {
       if (!clients.has(s.id)) {
-        console.log(`[Baileys] Session ${s.phone_number || s.id} not in memory after 30s — marking disconnected`);
         await supabase
           .from('wa_sessions')
           .update({ status: 'disconnected', updated_at: new Date().toISOString() })
@@ -317,7 +291,7 @@ export async function restoreAllSessions() {
     }
   }, 30000);
 
-  console.log('[Baileys] Session restore initiated');
+  console.log('[Baileys] Restore initiated');
 }
 
 export { clients };
