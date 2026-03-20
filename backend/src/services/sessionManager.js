@@ -247,20 +247,18 @@ export async function disconnectSession(sessionId) {
   if (sock) {
     try {
       await sock.logout();
-    } catch {}
+    } catch (err) {
+      console.warn(`[Baileys] logout error for ${sessionId}:`, err.message);
+    }
     clients.delete(sessionId);
   }
 
-  await cleanupAuthFolder(sessionId);
-
-  await supabase
-    .from('wa_sessions')
-    .update({
-      status: 'disconnected',
-      session_data: {},
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', sessionId);
+  // Clean up local auth folder
+  try {
+    await cleanupAuthFolder(sessionId);
+  } catch (err) {
+    console.warn(`[Baileys] cleanup error for ${sessionId}:`, err.message);
+  }
 }
 
 export function getSessionStatus(sessionId) {
