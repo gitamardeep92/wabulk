@@ -1,7 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Smartphone, Plus, Trash2, RefreshCw, Wifi, WifiOff, QrCode, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Smartphone, Plus, Trash2, RefreshCw, Wifi, WifiOff, QrCode, CheckCircle2, AlertCircle, Copy, Check } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
+
+function CopyField({ value }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    toast.success('Session ID copied');
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="flex items-center gap-2 bg-[#0a1209] border border-[#1c2e20] rounded-lg px-3 py-2">
+      <code className="flex-1 text-xs font-mono text-[#8fb898] break-all select-all">{value}</code>
+      <button onClick={copy} className="btn-icon shrink-0 h-6 w-6">
+        {copied ? <Check size={13} className="text-[#25D366]" /> : <Copy size={13} />}
+      </button>
+    </div>
+  );
+}
 
 export default function Sessions() {
   const [sessions, setSessions] = useState([]);
@@ -159,39 +177,52 @@ export default function Sessions() {
       ) : (
         <div className="space-y-3">
           {sessions.map(s => (
-            <div key={s.id} className="card flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${s.status === 'connected' ? 'bg-[#0a1f0d] border border-[#1c2e20]' : 'bg-[#150f00] border border-[#2a2000]'}`}>
-                  {s.status === 'connected'
-                    ? <Wifi size={18} className="text-[#25D366]" />
-                    : <WifiOff size={18} className="text-[#fbbf24]" />
-                  }
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-[#dce8df]">{s.phone_number || 'Pending...'}</span>
-                    {s.status === 'connected' && (
-                      <span className="badge-success"><CheckCircle2 size={10} />Connected</span>
-                    )}
-                    {s.status === 'pending' && <span className="badge-warn">Pending scan</span>}
-                    {s.status === 'disconnected' && <span className="badge-danger">Disconnected</span>}
+            <div key={s.id} className="card">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${s.status === 'connected' ? 'bg-[#0a1f0d] border border-[#1c2e20]' : 'bg-[#150f00] border border-[#2a2000]'}`}>
+                    {s.status === 'connected'
+                      ? <Wifi size={18} className="text-[#25D366]" />
+                      : <WifiOff size={18} className="text-[#fbbf24]" />
+                    }
                   </div>
-                  <div className="text-xs text-[#5a7a62] mt-0.5">
-                    {s.display_name && <span className="mr-2">{s.display_name}</span>}
-                    {s.connected_at && `Connected ${new Date(s.connected_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-[#dce8df]">{s.phone_number || 'Pending...'}</span>
+                      {s.status === 'connected' && (
+                        <span className="badge-success"><CheckCircle2 size={10} />Connected</span>
+                      )}
+                      {s.status === 'pending' && <span className="badge-warn">Pending scan</span>}
+                      {s.status === 'disconnected' && <span className="badge-danger">Disconnected</span>}
+                    </div>
+                    <div className="text-xs text-[#5a7a62] mt-0.5">
+                      {s.display_name && <span className="mr-2">{s.display_name}</span>}
+                      {s.connected_at && `Connected ${new Date(s.connected_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {s.status === 'disconnected' && (
-                  <button onClick={() => pollQr(s.id)} className="btn-secondary gap-1.5 px-3 py-1.5 text-xs">
-                    <RefreshCw size={12} /> Reconnect
+                <div className="flex items-center gap-2 shrink-0">
+                  {s.status === 'disconnected' && (
+                    <button onClick={() => pollQr(s.id)} className="btn-secondary gap-1.5 px-3 py-1.5 text-xs">
+                      <RefreshCw size={12} /> Reconnect
+                    </button>
+                  )}
+                  <button onClick={() => setDeleteConfirm(s)} className="btn-icon text-[#f87171] hover:text-[#f87171] hover:bg-[#150606]">
+                    <Trash2 size={15} />
                   </button>
-                )}
-                <button onClick={() => setDeleteConfirm(s)} className="btn-icon text-[#f87171] hover:text-[#f87171] hover:bg-[#150606]">
-                  <Trash2 size={15} />
-                </button>
+                </div>
               </div>
+
+              {/* Session ID — shown for connected sessions for API integration */}
+              {s.status === 'connected' && (
+                <div className="mt-3 pt-3 border-t border-[#1c2e20]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-[#5a7a62] uppercase tracking-wide">Session ID</span>
+                    <span className="text-xs text-[#344a38]">Use this as <code className="text-[#25D366]">session_id</code> in API calls</span>
+                  </div>
+                  <CopyField value={s.id} />
+                </div>
+              )}
             </div>
           ))}
         </div>

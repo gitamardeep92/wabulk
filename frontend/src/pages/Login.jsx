@@ -210,24 +210,44 @@ import { CheckCircle2, Copy } from 'lucide-react';
 
 export function Docs() {
   const sections = [
-    { title: 'Authentication', desc: 'Pass your API key as a Bearer token in all requests.', code: `Authorization: Bearer wabk_live_xxxxxxxxxxxxxxxx` },
-    { title: 'Send bulk messages', desc: 'POST /v1/messages/send — send personalized messages to multiple recipients at once.', code: `curl -X POST https://wabulk-api.onrender.com/v1/messages/send \\
+    {
+      title: 'Step 1 — Get your API key',
+      desc: 'Go to API Keys in the sidebar and create a key. Pass it as a Bearer token in every request.',
+      code: `Authorization: Bearer wabk_live_xxxxxxxxxxxxxxxx`
+    },
+    {
+      title: 'Step 2 — Get your Session ID',
+      desc: 'The session_id tells the API which WhatsApp number to send from. Go to WA Numbers in the sidebar, connect your number by scanning a QR code, then copy the Session ID shown under your connected number. Each connected number has a unique session_id.',
+      code: `// Session ID looks like this:
+"session_id": "3f7c2e1a-9b4d-4f8a-bc23-1234567890ab"
+
+// Find it on the WA Numbers page after connecting your WhatsApp`
+    },
+    {
+      title: 'Step 3 — Send bulk messages',
+      desc: 'POST /v1/messages/send — send personalized messages to multiple recipients at once.',
+      code: `curl -X POST https://wabulk-api.onrender.com/v1/messages/send \\
   -H "Authorization: Bearer wabk_live_xxxx" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "session_id": "your-wa-session-uuid",
+    "session_id": "your-session-id-from-wa-numbers-page",
     "template": "Hi {{name}}, your {{plan}} expires on {{date}}.",
     "messages": [
       { "to": "+919876543210", "vars": { "name": "Rahul", "plan": "Gold", "date": "25 Apr" } },
       { "to": "+918800001234", "vars": { "name": "Priya", "plan": "Silver", "date": "30 Apr" } }
     ],
     "delay_ms": 3000
-  }'` },
-    { title: 'Response', desc: 'A successful request returns a campaign ID.', code: `{
+  }'`
+    },
+    {
+      title: 'Response',
+      desc: 'A successful request returns a campaign ID you can use to track delivery.',
+      code: `{
   "campaign_id": "uuid",
   "queued": 2,
   "message": "2 messages queued successfully"
-}` },
+}`
+    },
     { title: 'Node.js', desc: null, code: `const axios = require('axios');
 const client = axios.create({
   baseURL: 'https://wabulk-api.onrender.com',
