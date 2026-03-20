@@ -1,6 +1,8 @@
 import pkg from '@whiskeysockets/baileys';
+
+// Baileys exports everything on the default object in ESM interop
+const makeWASocket = pkg.default || pkg;
 const {
-  default: makeWASocket,
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
