@@ -1,13 +1,4 @@
-import pkg from '@whiskeysockets/baileys';
-
-// Baileys exports everything as named exports on the module object
-const {
-  default: makeWASocket,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-  useMultiFileAuthState,
-} = pkg;
+import * as baileys from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import supabase from '../lib/supabase.js';
@@ -15,6 +6,13 @@ import pino from 'pino';
 import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
+
+// import * is the only reliable way to get Baileys exports in this Node/ESM version
+const makeWASocket                = baileys.makeWASocket || baileys.default;
+const DisconnectReason            = baileys.DisconnectReason;
+const makeCacheableSignalKeyStore = baileys.makeCacheableSignalKeyStore;
+const useMultiFileAuthState       = baileys.useMultiFileAuthState;
+const fetchLatestBaileysVersion   = baileys.fetchLatestBaileysVersion;
 
 // Show warnings and errors from Baileys in Render logs
 // but suppress the very verbose info/debug messages
