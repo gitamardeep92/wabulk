@@ -41,7 +41,7 @@ function TemplateForm({ initial, onSave, onCancel }) {
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
           <div>
             <label className="label">Template name</label>
             <input className="input" value={form.name}
@@ -156,7 +156,7 @@ export default function Templates() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-5 animate-in">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4 md:space-y-5 animate-in">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="page-title">Templates</h1>

@@ -269,7 +269,7 @@ export default function Contacts() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-5 animate-in">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4 md:space-y-5 animate-in">
       {/* Modals */}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onImported={loadAll} />}
       {(showGroup || editGroup) && (

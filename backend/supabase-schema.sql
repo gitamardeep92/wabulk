@@ -229,10 +229,10 @@ create table if not exists public.contact_group_members (
 );
 
 -- Indexes
-create index if not exists on public.contacts(user_id);
-create index if not exists on public.contact_groups(user_id);
-create index if not exists on public.contact_group_members(group_id);
-create index if not exists on public.contact_group_members(contact_id);
+create index if not exists idx_contacts_user_id on public.contacts(user_id);
+create index if not exists idx_contact_groups_user_id on public.contact_groups(user_id);
+create index if not exists idx_contact_group_members_group on public.contact_group_members(group_id);
+create index if not exists idx_contact_group_members_contact on public.contact_group_members(contact_id);
 
 -- Function to keep contact_count updated
 create or replace function update_group_contact_count()

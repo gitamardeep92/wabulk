@@ -138,7 +138,7 @@ export function Settings() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-5 animate-in">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5 animate-in">
       <div><h1 className="page-title">Settings</h1><p className="page-subtitle">Manage your account preferences</p></div>
       <div className="card">
         <h2 className="text-sm font-semibold text-[#a8c4ae] mb-4">Profile</h2>
@@ -171,7 +171,7 @@ export function Billing() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5 animate-in">
       <div><h1 className="page-title">Billing & Plans</h1><p className="page-subtitle">Upgrade to send more messages</p></div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 gap-4">
         {plans.map(p => (
           <div key={p.name} className={`card flex flex-col ${p.highlight ? 'border-[#25D366]/30' : ''}`}>
             {p.highlight && <span className="badge-success mb-2 self-start">Most popular</span>}

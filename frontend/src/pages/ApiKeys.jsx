@@ -49,7 +49,7 @@ export default function ApiKeys() {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-5 animate-in">
+    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-4 md:space-y-5 animate-in">
       <div>
         <h1 className="page-title">API Keys</h1>
         <p className="page-subtitle">Authenticate your application to send messages via the WaBulk API</p>

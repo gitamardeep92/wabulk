@@ -41,24 +41,28 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6 animate-in">
-      <div className="flex items-start justify-between">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-4 md:space-y-6 animate-in">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="page-title">{greeting()}, {user?.full_name?.split(' ')[0]} 👋</h1>
-          <p className="page-subtitle">Here's what's happening with your campaigns</p>
+          <h1 className="page-title text-lg md:text-xl">{greeting()}, {user?.full_name?.split(' ')[0]} 👋</h1>
+          <p className="page-subtitle hidden sm:block">Here's what's happening with your campaigns</p>
         </div>
-        <Link to="/campaigns" className="btn-primary"><Plus size={15} /> New campaign</Link>
+        <Link to="/campaigns" className="btn-primary shrink-0 text-xs md:text-sm px-3 py-2 md:px-4 md:py-2.5">
+          <Plus size={13} /> <span className="hidden sm:inline">New campaign</span><span className="sm:hidden">New</span>
+        </Link>
       </div>
 
+      {/* Usage bar */}
       {user?.plan !== 'pro' && (
         <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Activity size={14} className="text-[#5a7a62]" />
-              <span className="text-sm font-medium text-[#a8c4ae]">Monthly usage</span>
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Activity size={13} className="text-[#5a7a62]" />
+              <span className="text-xs md:text-sm font-medium text-[#a8c4ae]">Monthly usage</span>
               <span className={`${user?.plan === 'free' ? 'badge-gray' : 'badge-info'} capitalize`}>{user?.plan}</span>
             </div>
-            <span className="text-sm text-[#5a7a62]">
+            <span className="text-xs text-[#5a7a62]">
               <span className="font-semibold text-[#dce8df]">{used.toLocaleString()}</span> / {limit === -1 ? '∞' : limit.toLocaleString()}
             </span>
           </div>
@@ -75,32 +79,32 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stat cards - 2 col on mobile, 4 on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {[
           { label: 'Messages sent', value: loading ? '—' : used.toLocaleString(), icon: Send, bg: 'bg-[#0a1f0d]', color: 'text-[#25D366]', sub: 'this month' },
           { label: 'Delivered', value: loading ? '—' : (stats?.last_30_days?.delivered || 0).toLocaleString(), icon: CheckCircle2, bg: 'bg-[#051a10]', color: 'text-[#4ade80]', sub: deliveryRate > 0 ? `${deliveryRate}% rate` : '30 days' },
           { label: 'Failed', value: loading ? '—' : (stats?.last_30_days?.failed || 0).toLocaleString(), icon: XCircle, bg: 'bg-[#150606]', color: 'text-[#f87171]', sub: '30 days' },
           { label: 'Campaigns', value: loading ? '—' : (stats?.total_campaigns || 0).toLocaleString(), icon: Zap, bg: 'bg-[#0f0d00]', color: 'text-[#fbbf24]', sub: 'all time' },
         ].map(({ label, value, icon: Icon, bg, color, sub }) => (
-          <div key={label} className="card flex flex-col gap-3">
+          <div key={label} className="card flex flex-col gap-2 md:gap-3 p-3 md:p-5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#5a7a62] uppercase tracking-wider">{label}</span>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${bg} ${color}`}><Icon size={15} /></div>
+              <span className="text-[10px] md:text-xs font-semibold text-[#5a7a62] uppercase tracking-wider leading-tight">{label}</span>
+              <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${bg} ${color}`}><Icon size={13} /></div>
             </div>
             <div>
-              <div className="text-2xl font-semibold text-[#dce8df]">{value}</div>
-              <div className="text-xs text-[#5a7a62] mt-0.5">{sub}</div>
+              <div className="text-xl md:text-2xl font-semibold text-[#dce8df]">{value}</div>
+              <div className="text-[10px] md:text-xs text-[#5a7a62] mt-0.5">{sub}</div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      {/* Chart + sidebar - stacked on mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
         <div className="card lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-[#a8c4ae]">Activity — last 7 days</h2>
-          </div>
-          <ResponsiveContainer width="100%" height={160}>
+          <h2 className="text-sm font-semibold text-[#a8c4ae] mb-4">Activity — last 7 days</h2>
+          <ResponsiveContainer width="100%" height={140}>
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
@@ -108,22 +112,22 @@ export default function Dashboard() {
                   <stop offset="100%" stopColor="#25D366" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="day" tick={{ fill: '#5a7a62', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#5a7a62', fontSize: 11 }} axisLine={false} tickLine={false} width={25} />
+              <XAxis dataKey="day" tick={{ fill: '#5a7a62', fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#5a7a62', fontSize: 10 }} axisLine={false} tickLine={false} width={20} />
               <Tooltip contentStyle={{ background: '#0f1810', border: '1px solid #1c2e20', borderRadius: 10, fontSize: 12 }} labelStyle={{ color: '#a8c4ae' }} itemStyle={{ color: '#25D366' }} />
               <Area type="monotone" dataKey="sent" stroke="#25D366" strokeWidth={2} fill="url(#g)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <div className="card">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-[#a8c4ae]">Recent campaigns</h2>
               <Link to="/campaigns" className="text-xs text-[#5a7a62] hover:text-[#25D366] transition-colors">All →</Link>
             </div>
             {campaigns.length === 0 ? (
-              <div className="py-5 text-center">
+              <div className="py-4 text-center">
                 <Send size={18} className="text-[#344a38] mx-auto mb-2" />
                 <p className="text-xs text-[#3a5040]">No campaigns yet</p>
                 <Link to="/campaigns" className="text-xs text-[#25D366] hover:underline mt-1 inline-block">Send first →</Link>
@@ -133,11 +137,11 @@ export default function Dashboard() {
                 {campaigns.map(c => (
                   <Link key={c.id} to={`/campaigns/${c.id}`}
                     className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-[#0a1209] transition-colors group">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm text-[#dce8df] truncate">{c.name}</div>
-                      <div className="text-xs text-[#5a7a62]">{c.total_recipients} recipients</div>
+                    <div className="min-w-0 flex-1 mr-2">
+                      <div className="text-xs md:text-sm text-[#dce8df] truncate">{c.name}</div>
+                      <div className="text-[10px] md:text-xs text-[#5a7a62]">{c.total_recipients} recipients</div>
                     </div>
-                    <span className={statusMap[c.status] || 'badge-gray'}>{c.status}</span>
+                    <span className={`${statusMap[c.status] || 'badge-gray'} shrink-0`}>{c.status}</span>
                   </Link>
                 ))}
               </div>
@@ -152,8 +156,8 @@ export default function Dashboard() {
                 { to: '/api-keys', icon: Key, label: 'Get API key' },
               ].map(({ to, icon: Icon, label }) => (
                 <Link key={to} to={to} className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-[#0a1209] transition-colors group">
-                  <Icon size={14} className="text-[#5a7a62] group-hover:text-[#25D366] transition-colors" />
-                  <span className="text-sm text-[#8fb898]">{label}</span>
+                  <Icon size={13} className="text-[#5a7a62] group-hover:text-[#25D366] transition-colors shrink-0" />
+                  <span className="text-xs md:text-sm text-[#8fb898]">{label}</span>
                   <ArrowRight size={11} className="ml-auto text-[#344a38] group-hover:text-[#5a7a62]" />
                 </Link>
               ))}

@@ -27,7 +27,7 @@ export default function CampaignDetail() {
   const statusMap = { completed: 'badge-success', sending: 'badge-info', queued: 'badge-warn', failed: 'badge-danger', cancelled: 'badge-gray' };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-5 animate-in">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-4 md:space-y-5 animate-in">
       <div className="flex items-center gap-3">
         <Link to="/campaigns" className="btn-icon"><ArrowLeft size={16} /></Link>
         <div className="flex-1 min-w-0">
