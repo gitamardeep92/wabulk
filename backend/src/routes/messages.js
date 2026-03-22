@@ -115,14 +115,19 @@ router.get('/stats', requireAuth, async (req, res) => {
   const monthStart = `${month}-01T00:00:00.000Z`;
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
-  const [limitsRes, campaignsRes, usageRes, sentRes, deliveredRes, failedRes] = await Promise.all([
+  const [limitsRes, campaignsRes, monthSentRes, sentRes, deliveredRes, failedRes] = await Promise.all([
     supabase.from('plan_limits').select('monthly_messages').eq('plan', req.user.plan).maybeSingle(),
     supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-    // Use the usage table for month count (incremented when campaign is created)
-    supabase.from('usage').select('messages_sent').eq('user_id', userId).eq('month', month).maybeSingle(),
-    // Sent = messages with status sent OR delivered in last 30 days
+    // Month usage = all non-queued messages this month (most accurate)
     supabase.from('messages').select('*', { count: 'exact', head: true })
-      .eq('user_id', userId).in('status', ['sent', 'delivered']).gte('queued_at', thirtyDaysAgo),
+      .eq('user_id', userId)
+      .gte('queued_at', monthStart)
+      .neq('status', 'queued'),
+    // Sent in last 30 days = sent + delivered + failed (all that were attempted)
+    supabase.from('messages').select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('status', ['sent', 'delivered', 'failed', 'sending'])
+      .gte('queued_at', thirtyDaysAgo),
     // Delivered
     supabase.from('messages').select('*', { count: 'exact', head: true })
       .eq('user_id', userId).eq('status', 'delivered').gte('queued_at', thirtyDaysAgo),
@@ -132,7 +137,7 @@ router.get('/stats', requireAuth, async (req, res) => {
   ]);
 
   res.json({
-    month_usage: usageRes.data?.messages_sent || 0,
+    month_usage: monthSentRes.count || 0,
     month_limit: limitsRes.data?.monthly_messages ?? 500,
     total_campaigns: campaignsRes.count || 0,
     last_30_days: {
