@@ -22,7 +22,9 @@ export default function CampaignDetail() {
   if (!data) return <div className="p-6"><p className="text-[#5a7a62]">Campaign not found</p></div>;
 
   const { campaign: c, messages } = data;
-  const deliveryRate = c.sent_count > 0 ? Math.round((c.delivered_count / c.sent_count) * 100) : 0;
+  // Success rate = sent / total (no delivery tracking)
+  const successRate = c.total_recipients > 0
+    ? Math.round((c.sent_count / c.total_recipients) * 100) : 0;
 
   const statusMap = { completed: 'badge-success', sending: 'badge-info', queued: 'badge-warn', failed: 'badge-danger', cancelled: 'badge-gray' };
 
@@ -45,15 +47,14 @@ export default function CampaignDetail() {
         )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* Stats — 3 cards, no Delivered */}
+      <div className="grid grid-cols-3 gap-3 md:gap-4">
         {[
           { label: 'Total', value: c.total_recipients, icon: Send, color: 'text-[#8fb898]' },
           { label: 'Sent', value: c.sent_count, icon: Send, color: 'text-[#25D366]' },
-          { label: 'Delivered', value: c.delivered_count, icon: CheckCircle2, color: 'text-[#4ade80]' },
           { label: 'Failed', value: c.failed_count, icon: XCircle, color: 'text-[#f87171]' },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="card text-center">
+          <div key={label} className="card text-center p-3 md:p-5">
             <Icon size={16} className={`${color} mx-auto mb-2`} />
             <div className="text-xl font-semibold text-[#dce8df]">{value}</div>
             <div className="text-xs text-[#5a7a62]">{label}</div>
@@ -64,11 +65,11 @@ export default function CampaignDetail() {
       {c.sent_count > 0 && (
         <div className="card">
           <div className="flex justify-between text-xs text-[#5a7a62] mb-2">
-            <span>Delivery rate</span>
-            <span className="font-semibold text-[#dce8df]">{deliveryRate}%</span>
+            <span>Success rate</span>
+            <span className="font-semibold text-[#dce8df]">{successRate}%</span>
           </div>
           <div className="h-2 bg-[#1c2e20] rounded-full overflow-hidden">
-            <div className="h-full bg-[#25D366] rounded-full transition-all duration-700" style={{ width: `${deliveryRate}%` }} />
+            <div className="h-full bg-[#25D366] rounded-full transition-all duration-700" style={{ width: `${successRate}%` }} />
           </div>
         </div>
       )}
@@ -92,8 +93,7 @@ export default function CampaignDetail() {
                   <td className="table-cell font-mono text-xs text-[#a8c4ae]">{m.to_number}</td>
                   <td className="table-cell text-[#5a7a62] text-xs max-w-xs truncate">{m.rendered_body}</td>
                   <td className="table-cell">
-                    {m.status === 'delivered' && <span className="badge-success"><CheckCircle2 size={10} />Delivered</span>}
-                    {m.status === 'sent' && <span className="badge-info"><Send size={10} />Sent</span>}
+                    {m.status === 'sent' && <span className="badge-success"><Send size={10} />Sent</span>}
                     {m.status === 'sending' && <span className="badge-info"><Clock size={10} />Sending</span>}
                     {m.status === 'queued' && <span className="badge-warn"><Clock size={10} />Queued</span>}
                     {m.status === 'failed' && <span className="badge-danger"><XCircle size={10} />Failed</span>}

@@ -339,7 +339,7 @@ export default function Campaigns() {
                 <div className="flex items-center gap-3 text-xs text-[#5a7a62] mb-3">
                   <span>{c.total_recipients} total</span>
                   <span className="text-[#25D366]">{c.sent_count} sent</span>
-                  <span className="text-[#4ade80]">{c.delivered_count} delivered</span>
+                  
                   {c.failed_count > 0 && <span className="text-[#f87171]">{c.failed_count} failed</span>}
                 </div>
                 <div className="flex items-center gap-2">
@@ -358,7 +358,7 @@ export default function Campaigns() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b border-[#1c2e20]">
-                  <tr>{['Campaign','Recipients','Sent','Delivered','Failed','Status','Date',''].map(h => <th key={h} className="table-head">{h}</th>)}</tr>
+                  <tr>{['Campaign','Recipients','Sent','Failed','Status','Date',''].map(h => <th key={h} className="table-head">{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {campaigns.map(c => (
@@ -366,7 +366,6 @@ export default function Campaigns() {
                       <td className="table-cell font-medium text-[#dce8df] max-w-[150px] truncate">{c.name}</td>
                       <td className="table-cell text-[#8fb898]">{c.total_recipients}</td>
                       <td className="table-cell text-[#8fb898]">{c.sent_count}</td>
-                      <td className="table-cell text-[#4ade80]">{c.delivered_count}</td>
                       <td className="table-cell text-[#f87171]">{c.failed_count}</td>
                       <td className="table-cell"><span className={statusMap[c.status] || 'badge-gray'}>{c.status}</span></td>
                       <td className="table-cell text-[#5a7a62] text-xs">{new Date(c.created_at).toLocaleDateString('en-IN')}</td>

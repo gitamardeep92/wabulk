@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, CheckCircle2, XCircle, Zap, ArrowRight, Plus, Smartphone, Key, TrendingUp, Activity } from 'lucide-react';
+import { Send, XCircle, Zap, ArrowRight, Plus, Smartphone, Key, TrendingUp, Activity } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../lib/api';
 import { useAuthStore } from '../hooks/useAuth';
@@ -30,10 +30,11 @@ export default function Dashboard() {
   const limit = PLAN_LIMITS[user?.plan] || 500;
   const used = stats?.month_usage || 0;
   const pct = limit === -1 ? 5 : Math.min((used / limit) * 100, 100);
-  const deliveryRate = stats?.last_30_days?.sent > 0
-    ? Math.round((stats.last_30_days.delivered / stats.last_30_days.sent) * 100) : 0;
 
-  const statusMap = { completed: 'badge-success', sending: 'badge-info', queued: 'badge-warn', failed: 'badge-danger', cancelled: 'badge-gray' };
+  const statusMap = {
+    completed: 'badge-success', sending: 'badge-info',
+    queued: 'badge-warn', failed: 'badge-danger', cancelled: 'badge-gray',
+  };
 
   const chartData = [
     { day: 'Mon', sent: 0 }, { day: 'Tue', sent: 0 }, { day: 'Wed', sent: 0 },
@@ -63,7 +64,8 @@ export default function Dashboard() {
               <span className={`${user?.plan === 'free' ? 'badge-gray' : 'badge-info'} capitalize`}>{user?.plan}</span>
             </div>
             <span className="text-xs text-[#5a7a62]">
-              <span className="font-semibold text-[#dce8df]">{used.toLocaleString()}</span> / {limit === -1 ? '∞' : limit.toLocaleString()}
+              <span className="font-semibold text-[#dce8df]">{used.toLocaleString()}</span>
+              {' '}/ {limit === -1 ? '∞' : limit.toLocaleString()}
             </span>
           </div>
           <div className="h-1.5 bg-[#1c2e20] rounded-full overflow-hidden">
@@ -79,18 +81,37 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stat cards - 2 col on mobile, 4 on desktop */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      {/* Stat cards — 3 cards now (removed Delivered) */}
+      <div className="grid grid-cols-3 gap-3 md:gap-4">
         {[
-          { label: 'Messages sent', value: loading ? '—' : used.toLocaleString(), icon: Send, bg: 'bg-[#0a1f0d]', color: 'text-[#25D366]', sub: 'this month' },
-          { label: 'Delivered', value: loading ? '—' : (stats?.last_30_days?.delivered || 0).toLocaleString(), icon: CheckCircle2, bg: 'bg-[#051a10]', color: 'text-[#4ade80]', sub: deliveryRate > 0 ? `${deliveryRate}% rate` : '30 days' },
-          { label: 'Failed', value: loading ? '—' : (stats?.last_30_days?.failed || 0).toLocaleString(), icon: XCircle, bg: 'bg-[#150606]', color: 'text-[#f87171]', sub: '30 days' },
-          { label: 'Campaigns', value: loading ? '—' : (stats?.total_campaigns || 0).toLocaleString(), icon: Zap, bg: 'bg-[#0f0d00]', color: 'text-[#fbbf24]', sub: 'all time' },
+          {
+            label: 'Messages sent',
+            value: loading ? '—' : used.toLocaleString(),
+            icon: Send,
+            bg: 'bg-[#0a1f0d]', color: 'text-[#25D366]',
+            sub: 'this month',
+          },
+          {
+            label: 'Sent (30d)',
+            value: loading ? '—' : (stats?.last_30_days?.sent || 0).toLocaleString(),
+            icon: Send,
+            bg: 'bg-[#051a10]', color: 'text-[#4ade80]',
+            sub: 'last 30 days',
+          },
+          {
+            label: 'Failed',
+            value: loading ? '—' : (stats?.last_30_days?.failed || 0).toLocaleString(),
+            icon: XCircle,
+            bg: 'bg-[#150606]', color: 'text-[#f87171]',
+            sub: 'last 30 days',
+          },
         ].map(({ label, value, icon: Icon, bg, color, sub }) => (
-          <div key={label} className="card flex flex-col gap-2 md:gap-3 p-3 md:p-5">
+          <div key={label} className="card flex flex-col gap-2 p-3 md:p-5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] md:text-xs font-semibold text-[#5a7a62] uppercase tracking-wider leading-tight">{label}</span>
-              <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${bg} ${color}`}><Icon size={13} /></div>
+              <div className={`w-7 h-7 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 ${bg} ${color}`}>
+                <Icon size={13} />
+              </div>
             </div>
             <div>
               <div className="text-xl md:text-2xl font-semibold text-[#dce8df]">{value}</div>
@@ -100,10 +121,13 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Chart + sidebar - stacked on mobile */}
+      {/* Campaigns stat + chart */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
         <div className="card lg:col-span-2">
-          <h2 className="text-sm font-semibold text-[#a8c4ae] mb-4">Activity — last 7 days</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-[#a8c4ae]">Activity — last 7 days</h2>
+            <span className="text-xs text-[#344a38]">Messages sent</span>
+          </div>
           <ResponsiveContainer width="100%" height={140}>
             <AreaChart data={chartData}>
               <defs>
@@ -114,13 +138,28 @@ export default function Dashboard() {
               </defs>
               <XAxis dataKey="day" tick={{ fill: '#5a7a62', fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#5a7a62', fontSize: 10 }} axisLine={false} tickLine={false} width={20} />
-              <Tooltip contentStyle={{ background: '#0f1810', border: '1px solid #1c2e20', borderRadius: 10, fontSize: 12 }} labelStyle={{ color: '#a8c4ae' }} itemStyle={{ color: '#25D366' }} />
+              <Tooltip
+                contentStyle={{ background: '#0f1810', border: '1px solid #1c2e20', borderRadius: 10, fontSize: 12 }}
+                labelStyle={{ color: '#a8c4ae' }} itemStyle={{ color: '#25D366' }}
+              />
               <Area type="monotone" dataKey="sent" stroke="#25D366" strokeWidth={2} fill="url(#g)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         <div className="space-y-3 md:space-y-4">
+          {/* Campaigns total */}
+          <div className="card flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-[#0f0d00] flex items-center justify-center shrink-0">
+              <Zap size={16} className="text-[#fbbf24]" />
+            </div>
+            <div>
+              <div className="text-2xl font-semibold text-[#dce8df]">{loading ? '—' : stats?.total_campaigns || 0}</div>
+              <div className="text-xs text-[#5a7a62]">Total campaigns</div>
+            </div>
+          </div>
+
+          {/* Recent campaigns */}
           <div className="card">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-[#a8c4ae]">Recent campaigns</h2>
@@ -136,7 +175,7 @@ export default function Dashboard() {
               <div className="space-y-0.5">
                 {campaigns.map(c => (
                   <Link key={c.id} to={`/campaigns/${c.id}`}
-                    className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-[#0a1209] transition-colors group">
+                    className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-[#0a1209] transition-colors">
                     <div className="min-w-0 flex-1 mr-2">
                       <div className="text-xs md:text-sm text-[#dce8df] truncate">{c.name}</div>
                       <div className="text-[10px] md:text-xs text-[#5a7a62]">{c.total_recipients} recipients</div>
@@ -147,16 +186,18 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* Quick start */}
           <div className="card">
             <h2 className="text-sm font-semibold text-[#a8c4ae] mb-3">Quick start</h2>
             <div className="space-y-0.5">
               {[
                 { to: '/sessions', icon: Smartphone, label: 'Connect WhatsApp' },
-                { to: '/templates', icon: Zap, label: 'Create template' },
+                { to: '/campaigns', icon: Send, label: 'Send campaign' },
                 { to: '/api-keys', icon: Key, label: 'Get API key' },
               ].map(({ to, icon: Icon, label }) => (
                 <Link key={to} to={to} className="flex items-center gap-3 py-2 px-2 -mx-2 rounded-lg hover:bg-[#0a1209] transition-colors group">
-                  <Icon size={13} className="text-[#5a7a62] group-hover:text-[#25D366] transition-colors shrink-0" />
+                  <Icon size={13} className="text-[#5a7a62] group-hover:text-[#25D366] shrink-0" />
                   <span className="text-xs md:text-sm text-[#8fb898]">{label}</span>
                   <ArrowRight size={11} className="ml-auto text-[#344a38] group-hover:text-[#5a7a62]" />
                 </Link>
