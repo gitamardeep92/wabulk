@@ -1,9 +1,28 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Users, Plus, Upload, Trash2, Search, UserPlus, FolderPlus, Edit2, ChevronRight, X, Check, AlertCircle } from 'lucide-react';
+import { Users, Plus, Upload, Trash2, Search, UserPlus, FolderPlus, Edit2, X, Check, AlertCircle, Phone } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
-// ── CSV Parser ────────────────────────────────────────────
+// Check if Contact Picker API is available (Android Chrome PWA)
+const canPickContacts = () => 'contacts' in navigator && 'ContactsManager' in window;
+
+// Pick contacts from phone using Contact Picker API
+async function pickFromPhone() {
+  try {
+    const props = ['name', 'tel'];
+    const opts = { multiple: true };
+    const results = await navigator.contacts.select(props, opts);
+    return results.map(c => ({
+      name: c.name?.[0] || 'Unknown',
+      phone: (c.tel?.[0] || '').replace(/\s/g, ''),
+    })).filter(c => c.phone);
+  } catch (err) {
+    console.error('Contact picker error:', err);
+    return [];
+  }
+}
+
+// CSV Parser
 function parseCsv(text) {
   const lines = text.trim().split('\n').filter(Boolean);
   if (lines.length < 2) return [];
@@ -15,8 +34,6 @@ function parseCsv(text) {
     return obj;
   });
 }
-
-// ── Import Modal ──────────────────────────────────────────
 function ImportModal({ onClose, onImported }) {
   const [csvText, setCsvText] = useState('');
   const [preview, setPreview] = useState([]);
@@ -315,6 +332,19 @@ export default function Contacts() {
           <button onClick={() => setShowImport(true)} className="btn-secondary gap-2">
             <Upload size={14} /> Import CSV
           </button>
+          {canPickContacts() && (
+            <button onClick={async () => {
+              const picked = await pickFromPhone();
+              if (!picked.length) return toast.error('No contacts selected');
+              try {
+                const { data } = await api.post('/contacts/import', { contacts: picked });
+                toast.success(`${data.imported} contacts imported from phone`);
+                loadAll();
+              } catch (err) { toast.error(err.response?.data?.error || 'Import failed'); }
+            }} className="btn-secondary gap-2">
+              <Phone size={14} /> From phone
+            </button>
+          )}
           {tab === 'contacts'
             ? <button onClick={() => setShowAdd(!showAdd)} className="btn-primary"><Plus size={15} /> Add contact</button>
             : <button onClick={() => setShowGroup(true)} className="btn-primary"><FolderPlus size={15} /> New group</button>

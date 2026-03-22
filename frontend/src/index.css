@@ -138,3 +138,12 @@
     align-items: flex-end !important;
   }
 }
+
+/* ── PWA safe areas ── */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* ── Bottom nav safe area ── */
+nav.fixed.bottom-0 {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}

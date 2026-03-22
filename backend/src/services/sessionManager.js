@@ -295,3 +295,27 @@ export async function restoreAllSessions() {
 }
 
 export { clients };
+
+// Request pairing code (alternative to QR for connecting via phone number)
+export async function requestPairingCode(sessionId, phoneNumber) {
+  const sock = clients.get(sessionId);
+  if (!sock) throw new Error('Session not in memory. Try reconnecting.');
+  
+  // Phone number must be digits only, no + or spaces
+  const clean = phoneNumber.replace(/\D/g, '');
+  if (!clean || clean.length < 7) throw new Error('Invalid phone number');
+  
+  try {
+    const code = await sock.requestPairingCode(clean);
+    console.log(`[Baileys] Pairing code for ${sessionId}: ${code}`);
+    
+    await supabase.from('wa_sessions')
+      .update({ status: 'pairing', updated_at: new Date().toISOString() })
+      .eq('id', sessionId);
+    
+    return code;
+  } catch (err) {
+    console.error(`[Baileys] Pairing code error:`, err.message);
+    throw new Error('Could not generate pairing code. Make sure the session is ready.');
+  }
+}

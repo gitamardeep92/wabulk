@@ -23,24 +23,35 @@ router.post('/login', async (req, res) => {
 // GET /admin/stats - platform overview
 router.get('/stats', requireAdmin, async (req, res) => {
   const month = new Date().toISOString().slice(0, 7);
+  const monthStart = `${month}-01`;
 
-  const [{ count: totalUsers }, { count: activeUsers }, usageRes, campaignRes] =
+  const [totalUsersRes, activeUsersRes, sessionsRes, campaignRes, monthMsgsRes, totalMsgsRes] =
     await Promise.all([
       supabase.from('users').select('*', { count: 'exact', head: true }),
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('usage').select('messages_sent').eq('month', month),
-      supabase.from('campaigns').select('status').gte(
-        'created_at', new Date(Date.now() - 30 * 86400000).toISOString()
-      ),
+      supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString()),
+      supabase.from('wa_sessions').select('*', { count: 'exact', head: true }).eq('status', 'connected'),
+      supabase.from('campaigns').select('status').gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString()),
+      // Messages sent this month
+      supabase.from('messages').select('*', { count: 'exact', head: true })
+        .gte('queued_at', monthStart).not('status', 'eq', 'queued'),
+      // Total messages all time
+      supabase.from('messages').select('*', { count: 'exact', head: true })
+        .not('status', 'eq', 'queued'),
     ]);
 
-  const totalMessages = (usageRes.data || []).reduce((a, r) => a + r.messages_sent, 0);
   const campaignsByStatus = (campaignRes.data || []).reduce((acc, c) => {
     acc[c.status] = (acc[c.status] || 0) + 1;
     return acc;
   }, {});
 
-  res.json({ totalUsers, activeUsers, totalMessages, campaignsByStatus });
+  res.json({
+    totalUsers: totalUsersRes.count || 0,
+    activeUsers: activeUsersRes.count || 0,
+    connectedSessions: sessionsRes.count || 0,
+    totalMessages: totalMsgsRes.count || 0,
+    monthMessages: monthMsgsRes.count || 0,
+    campaignsByStatus,
+  });
 });
 
 // GET /admin/users

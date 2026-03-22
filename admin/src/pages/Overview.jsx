@@ -21,9 +21,9 @@ export default function Overview() {
 
   const cards = [
     { label: 'Total users', value: stats?.totalUsers ?? '—', icon: Users, color: 'text-[#60a5fa]', bg: 'bg-[#0a1530]' },
-    { label: 'Active users', value: stats?.activeUsers ?? '—', icon: Activity, color: 'text-[#4ade80]', bg: 'bg-[#0a1f10]' },
-    { label: 'Messages this month', value: stats?.totalMessages?.toLocaleString() ?? '—', icon: Send, color: 'text-[#a78bfa]', bg: 'bg-[#13102a]' },
-    { label: 'Campaigns (30d)', value: campaignData.reduce((a, c) => a + c.value, 0) || '—', icon: TrendingUp, color: 'text-[#fb923c]', bg: 'bg-[#1a1005]' },
+    { label: 'New users (30d)', value: stats?.activeUsers ?? '—', icon: Activity, color: 'text-[#4ade80]', bg: 'bg-[#0a1f10]' },
+    { label: 'Messages this month', value: stats?.monthMessages?.toLocaleString() ?? '—', icon: Send, color: 'text-[#a78bfa]', bg: 'bg-[#13102a]' },
+    { label: 'Connected numbers', value: stats?.connectedSessions ?? '—', icon: Smartphone, color: 'text-[#fb923c]', bg: 'bg-[#1a1005]' },
   ];
 
   return (
